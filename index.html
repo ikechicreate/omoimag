@@ -1,98 +1,82 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2685.3">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
-  </style>
+    <meta charset="utf-8">
+    <title>想いマグ - OMOI-MAG AR</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 </head>
-<body>
-<p class="p1">&lt;!DOCTYPE html&gt;</p>
-<p class="p1">&lt;html&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta charset="utf-8"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;title&gt;想いマグ - OMOI-MAG AR&lt;/title&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;script src="https://aframe.io/releases/1.2.0/aframe.min.js"&gt;&lt;/script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"&gt;&lt;/script&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p2"><br></p>
-<p class="p1">&lt;body style="margin: 0; overflow: hidden;"&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;"&gt;</p>
-<p class="p2"><span class="Apple-converted-space">        </span></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;a-assets&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"&gt;&lt;/audio&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;audio id="music-a" src="music/side-a.mp3" preload="auto"&gt;&lt;/audio&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;audio id="music-b" src="music/side-b.mp3" preload="auto"&gt;&lt;/audio&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/a-assets&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;a-marker type="image" url="markers/marker-a.patt" id="marker-a"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;a-entity text="value: Side A Playing; color: #FF0000" position="0 0.5 0" align="center"&gt;&lt;/a-entity&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/a-marker&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;a-marker type="image" url="markers/marker-b.patt" id="marker-b"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;a-entity text="value: Side B Playing; color: #0000FF" position="0 0.5 0" align="center"&gt;&lt;/a-entity&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/a-marker&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;a-entity camera&gt;&lt;/a-entity&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/a-scene&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const isAndroid = /Android/i.test(navigator.userAgent);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const markerA = document.querySelector('#marker-a');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const markerB = document.querySelector('#marker-b');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const soundKacha = document.querySelector('#insert-sound');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const musicA = document.querySelector('#music-a');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const musicB = document.querySelector('#music-b');</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>let isPlaying = false;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// --- A面認識時の処理 ---</p>
-<p class="p1"><span class="Apple-converted-space">        </span>markerA.addEventListener('markerFound', () =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>if (!isPlaying) {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>// Androidの場合のみ磁極チェック（将来の実装用プレースホルダー）</p>
-<p class="p1"><span class="Apple-converted-space">                </span>if (isAndroid) {</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>console.log("Android detected: Checking Magnetometer...");</p>
-<p class="p1"><span class="Apple-converted-space">                    </span>// ここに磁気センサーの判定ロジックを追加可能</p>
-<p class="p1"><span class="Apple-converted-space">                </span>}</p>
-<p class="p2"><span class="Apple-converted-space">                </span></p>
-<p class="p1"><span class="Apple-converted-space">                </span>playContent(musicA);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p1"><span class="Apple-converted-space">        </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// --- B面認識時の処理 ---</p>
-<p class="p1"><span class="Apple-converted-space">        </span>markerB.addEventListener('markerFound', () =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>if (!isPlaying) {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>playContent(musicB);</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}</p>
-<p class="p1"><span class="Apple-converted-space">        </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>function playContent(targetMusic) {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>isPlaying = true;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>// 「カチャッ」音を再生</p>
-<p class="p1"><span class="Apple-converted-space">            </span>soundKacha.play();</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>// 少し遅らせて音楽を開始（カチャッの余韻のため）</p>
-<p class="p1"><span class="Apple-converted-space">            </span>setTimeout(() =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">                </span>targetMusic.play();</p>
-<p class="p1"><span class="Apple-converted-space">                </span>console.log("Music started. Even if you move the magnet, it keeps playing.");</p>
-<p class="p1"><span class="Apple-converted-space">            </span>}, 500);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>// iPhone対策：画面タップでオーディオを有効化する案内を出すのがベストです</p>
-<p class="p1"><span class="Apple-converted-space">        </span>window.addEventListener('click', () =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">            </span>// ブラウザの自動再生制限を解除するためのダミー再生</p>
-<p class="p1"><span class="Apple-converted-space">            </span>musicA.load();</p>
-<p class="p1"><span class="Apple-converted-space">            </span>musicB.load();</p>
-<p class="p1"><span class="Apple-converted-space">            </span>soundKacha.load();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/script&gt;</p>
-<p class="p1">&lt;/body&gt;</p>
-<p class="p1">&lt;/html&gt;</p>
+
+<body style="margin: 0; overflow: hidden;">
+
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        
+        <a-assets>
+            <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
+            <audio id="music-a" src="music/side-a.mp3" preload="auto"></audio>
+            <audio id="music-b" src="music/side-b.mp3" preload="auto"></audio>
+        </a-assets>
+
+        <a-marker type="image" url="markers/marker-a.patt" id="marker-a">
+            <a-entity text="value: Side A Playing; color: #FF0000" position="0 0.5 0" align="center"></a-entity>
+        </a-marker>
+
+        <a-marker type="image" url="markers/marker-b.patt" id="marker-b">
+            <a-entity text="value: Side B Playing; color: #0000FF" position="0 0.5 0" align="center"></a-entity>
+        </a-marker>
+
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        const markerA = document.querySelector('#marker-a');
+        const markerB = document.querySelector('#marker-b');
+        const soundKacha = document.querySelector('#insert-sound');
+        const musicA = document.querySelector('#music-a');
+        const musicB = document.querySelector('#music-b');
+
+        let isPlaying = false;
+
+        // --- A面認識時の処理 ---
+        markerA.addEventListener('markerFound', () => {
+            if (!isPlaying) {
+                // Androidの場合のみ磁極チェック（将来の実装用プレースホルダー）
+                if (isAndroid) {
+                    console.log("Android detected: Checking Magnetometer...");
+                    // ここに磁気センサーの判定ロジックを追加可能
+                }
+                
+                playContent(musicA);
+            }
+        });
+
+        // --- B面認識時の処理 ---
+        markerB.addEventListener('markerFound', () => {
+            if (!isPlaying) {
+                playContent(musicB);
+            }
+        });
+
+        function playContent(targetMusic) {
+            isPlaying = true;
+            // 「カチャッ」音を再生
+            soundKacha.play();
+            
+            // 少し遅らせて音楽を開始（カチャッの余韻のため）
+            setTimeout(() => {
+                targetMusic.play();
+                console.log("Music started. Even if you move the magnet, it keeps playing.");
+            }, 500);
+        }
+
+        // iPhone対策：画面タップでオーディオを有効化する案内を出すのがベストです
+        window.addEventListener('click', () => {
+            // ブラウザの自動再生制限を解除するためのダミー再生
+            musicA.load();
+            musicB.load();
+            soundKacha.load();
+        });
+    </script>
 </body>
 </html>
