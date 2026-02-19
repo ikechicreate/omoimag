@@ -3,28 +3,30 @@
 <head>
     <meta charset="utf-8">
     <title>想いマグ - OMOI-MAG AR</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 
 <body style="margin: 0; overflow: hidden;">
 
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.1; filterBeta: 10" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
         <a-assets>
             <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
             <audio id="music-a" src="music/side-a.mp3" preload="auto"></audio>
             <audio id="music-b" src="music/side-b.mp3" preload="auto"></audio>
         </a-assets>
 
-        <a-marker preset="hiro" id="marker-a">
-            <a-box position="0 0.5 0" material="color: red; opacity: 0.8;" scale="1.5 0.5 1"></a-box>
-        </a-marker>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-marker type="pattern" url="markers/marker-b.patt" id="marker-b">
-            <a-entity text="value: Side B Playing; color: #0000FF; width: 4" position="0 0.5 0" rotation="-90 0 0" align="center" scale="3 3 3"></a-entity>
-        </a-marker>
+        <a-entity mindar-image-target="targetIndex: 0" id="marker-a">
+            <a-box position="0 0 0" material="color: red; opacity: 0.8;" scale="0.5 0.5 0.5"></a-box>
+        </a-entity>
 
-        <a-entity camera></a-entity>
+        <a-entity mindar-image-target="targetIndex: 1" id="marker-b">
+            <a-entity text="value: Side B Playing; color: #0000FF; width: 4" position="0 0 0" align="center" scale="2 2 2"></a-entity>
+        </a-entity>
+
     </a-scene>
 
     <script>
@@ -36,10 +38,10 @@
         const musicB = document.querySelector('#music-b');
 
         let isPlaying = false;
-        let isUnlocked = false; // ← 【修正】この1行を追加しました！
+        let isUnlocked = false;
 
-        // --- A面認識時 ---
-        markerA.addEventListener('markerFound', () => {
+        // --- A面認識時（MindARでは 'targetFound' という合図を使います） ---
+        markerA.addEventListener('targetFound', () => {
             if (!isPlaying) {
                 if (isAndroid) console.log("Android detected");
                 playContent(musicA);
@@ -47,7 +49,7 @@
         });
 
         // --- B面認識時 ---
-        markerB.addEventListener('markerFound', () => {
+        markerB.addEventListener('targetFound', () => {
             if (!isPlaying) {
                 playContent(musicB);
             }
@@ -64,7 +66,7 @@
             setTimeout(() => {
                 targetMusic.currentTime = 0;
                 targetMusic.play().catch(e => console.log("Music Error:", e));
-            }, 1200); // ★ここが間隔の調整です（1200 = 1.2秒後）
+            }, 800);
         }
 
        // 【iPhone対策】最初の画面タップ時の音声ロック解除を「完全無音」で行う
