@@ -56,13 +56,15 @@
         function playContent(targetMusic) {
             isPlaying = true;
             
-            // カチャッ音と音楽のスタート位置を最初に戻す
+            // カチャッ音を先に再生する
             soundKacha.currentTime = 0;
-            targetMusic.currentTime = 0;
-            
-            // 【iPhone対策】全く同時に再生指示を出す
             soundKacha.play().catch(e => console.log("Kacha Error:", e));
-            targetMusic.play().catch(e => console.log("Music Error:", e));
+            
+            // 少し遅らせてから音楽をスタートさせる
+            setTimeout(() => {
+                targetMusic.currentTime = 0;
+                targetMusic.play().catch(e => console.log("Music Error:", e));
+            }, 800); // ★ここが間隔の調整です（800 = 0.8秒後）
         }
 
        // 【iPhone対策】最初の画面タップ時の音声ロック解除を「完全無音」で行う
