@@ -37,26 +37,30 @@
         const musicB = document.querySelector('#music-b');
 
         let isUnlocked = false;
-        let currentMusic = null; // 今鳴っている曲を記憶します
+        let currentMusic = null; 
+        let playTimer = null; // 【追加】0.8秒待ちの「予約」を管理するタイマー
 
         // --- A面（0番の画像）が見えた時 ---
         markerA.addEventListener('targetFound', () => {
             if (currentMusic !== musicA) {
-                playContent(musicA, musicB); // Aを鳴らして、Bを止める
+                playContent(musicA, musicB); 
             }
         });
 
         // --- B面（1番の画像）が見えた時 ---
         markerB.addEventListener('targetFound', () => {
             if (currentMusic !== musicB) {
-                playContent(musicB, musicA); // Bを鳴らして、Aを止める
+                playContent(musicB, musicA); 
             }
         });
 
         function playContent(targetMusic, stopMusic) {
             currentMusic = targetMusic; 
             
-            // もう片方の曲を一時停止して、最初に戻す
+            // 【修正1】もし前の曲の「0.8秒待ちの予約」が残っていたら、ここでキャンセル（破棄）する
+            if (playTimer) clearTimeout(playTimer);
+            
+            // もう片方の曲を確実に一時停止して、最初に戻す
             stopMusic.pause();
             stopMusic.currentTime = 0;
             
@@ -64,10 +68,12 @@
             soundKacha.currentTime = 0;
             soundKacha.play().catch(e => console.log("Kacha Error:", e));
             
-            // 少し遅らせてから音楽をスタートさせる（800ミリ秒）
-            setTimeout(() => {
-                targetMusic.currentTime = 0;
-                targetMusic.play().catch(e => console.log("Music Error:", e));
+            // 【修正2】0.8秒待った後、本当に今映っている面か最終確認してから再生する
+            playTimer = setTimeout(() => {
+                if (currentMusic === targetMusic) {
+                    targetMusic.currentTime = 0;
+                    targetMusic.play().catch(e => console.log("Music Error:", e));
+                }
             }, 800);
         }
 
