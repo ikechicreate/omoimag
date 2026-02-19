@@ -55,14 +55,15 @@
         function playContent(targetMusic) {
             isPlaying = true;
             
-            // 【変更点】カチャッ音が鳴り終わった瞬間に音楽をスタートさせる（iPhone対策）
+            // カチャッの音が鳴り終わったら、音楽をスタートさせる（iPhone対策のリレー方式）
             soundKacha.onended = () => {
                 targetMusic.currentTime = 0;
-                targetMusic.play().catch(e => console.log("Music block:", e));
+                targetMusic.play().catch(e => console.log("Music Error:", e));
             };
             
+            // まずカチャッ音を鳴らす
             soundKacha.currentTime = 0;
-            soundKacha.play().catch(e => console.log("Kacha block:", e));
+            soundKacha.play().catch(e => console.log("Kacha Error:", e));
         }
 
        // 【iPhone対策】最初の画面タップ時の音声ロック解除を「完全無音」で行う
