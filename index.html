@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>想いマグ - 日本語・演出完成版</title>
+    <title>想いマグ - 100%表示版</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
@@ -23,40 +23,54 @@
             <a-box id="box-a" position="0 0 0.5" scale="1 0.6 0.1" material="color: #FF4081; opacity: 0.8"
                    animation="property: position; to: 0 0 0; dur: 600; easing: easeOutCubic; startEvents: targetFound">
             </a-box>
-            
-            <a-entity position="0 0.7 0" 
-                      animation="property: position; from: 0 0.4 0; to: 0 0.7 0; dur: 800; easing: easeOutBack; startEvents: targetFound">
-                <a-plane width="1.8" height="0.5" color="white" opacity="0.9"></a-plane>
-                <a-entity id="text-node-a" text="value: ; color: black; align: center; width: 3; font: https://cdn.aframe.io/fonts/Aileron-Semibold.fnt;"></a-entity>
-            </a-entity>
+            <a-plane id="msg-a" position="0 0.7 0" width="1.8" height="0.5" material="transparent: true"
+                   animation="property: position; from: 0 0.4 0; to: 0 0.7 0; dur: 800; easing: easeOutBack; startEvents: targetFound">
+            </a-plane>
         </a-entity>
 
         <a-entity mindar-image-target="targetIndex: 1" id="marker-b">
             <a-box id="box-b" position="0 0 0.5" scale="1 0.6 0.1" material="color: #2196F3; opacity: 0.8"
                    animation="property: position; to: 0 0 0; dur: 600; easing: easeOutCubic; startEvents: targetFound">
             </a-box>
-            
-            <a-entity position="0 0.7 0" 
-                      animation="property: position; from: 0 0.4 0; to: 0 0.7 0; dur: 800; easing: easeOutBack; startEvents: targetFound">
-                <a-plane width="1.8" height="0.5" color="white" opacity="0.9"></a-plane>
-                <a-entity id="text-node-b" text="value: ; color: black; align: center; width: 3; font: https://cdn.aframe.io/fonts/Aileron-Semibold.fnt;"></a-entity>
-            </a-entity>
+            <a-plane id="msg-b" position="0 0.7 0" width="1.8" height="0.5" material="transparent: true"
+                   animation="property: position; from: 0 0.4 0; to: 0 0.7 0; dur: 800; easing: easeOutBack; startEvents: targetFound">
+            </a-plane>
         </a-entity>
 
     </a-scene>
 
     <script>
-        // URLからメッセージを取得
+        // --- 日本語を画像化する魔法の関数 ---
+        function createTextTexture(text) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+            
+            // 背景（白）
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 文字の設定
+            ctx.font = 'bold 40px sans-serif';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            return canvas.toDataURL();
+        }
+
+        // URLからメッセージを取得して画像化
         const urlParams = new URLSearchParams(window.location.search);
-        // 日本語をデコード（文字化け対策）
-        const rawMsg = urlParams.get('msg') || "想いマグへようこそ";
-        const customMsg = decodeURIComponent(rawMsg);
+        const customMsg = decodeURIComponent(urlParams.get('msg') || "想いマグへようこそ");
+        const textImg = createTextTexture(customMsg);
 
-        // メッセージをセット（A-Frameの標準テキストは日本語が苦手なので工夫が必要ですが、まずはこれで試します）
-        // もしこれで日本語が消える場合は、画像として文字を表示する「究極の安定版」に切り替えます
-        document.querySelector('#text-node-a').setAttribute('text', 'value', customMsg);
-        document.querySelector('#text-node-b').setAttribute('text', 'value', customMsg);
+        // 各プレートに貼り付け
+        document.querySelector('#msg-a').setAttribute('material', 'src', textImg);
+        document.querySelector('#msg-b').setAttribute('material', 'src', textImg);
 
+        // --- 以下、判定と再生のロジック ---
         const markerA = document.querySelector('#marker-a');
         const markerB = document.querySelector('#marker-b');
         const musicA = document.querySelector('#music-a');
@@ -67,7 +81,7 @@
         let currentMusic = null;
         let currentMagneticPole = null;
 
-        // 磁気センサー
+        // 磁気センサー (Android)
         if ('Magnetometer' in window) {
             try {
                 const magSensor = new Magnetometer({ frequency: 10 });
@@ -77,7 +91,7 @@
                     else currentMagneticPole = null;
                 });
                 magSensor.start();
-            } catch (e) { console.log("Mag sensor error"); }
+            } catch (e) {}
         }
 
         function handleTargetFound(camSide) {
@@ -100,7 +114,20 @@
             stop.pause();
             stop.currentTime = 0;
             soundKacha.currentTime = 0;
-            soundKacha.play().catch(e => console.log(e));
+            soundKacha.play().catch(e => {});
             setTimeout(() => {
-                if (currentMusic === target) target.play().catch(e => console.log(e));
+                if (currentMusic === target) target.play().catch(e => {});
             }, 800);
+        }
+
+        window.addEventListener('click', () => {
+            if (isUnlocked) return;
+            [musicA, musicB, soundKacha].forEach(a => {
+                a.muted=true;
+                a.play().then(()=>{a.pause(); a.muted=false;});
+            });
+            isUnlocked = true;
+        }, {once: true});
+    </script>
+</body>
+</html>
