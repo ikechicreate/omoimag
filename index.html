@@ -65,18 +65,26 @@
             soundKacha.play().catch(e => console.log("Kacha block:", e));
         }
 
-        // 【変更点】最初の画面タップ時の音声ロック解除を「完全無音」で行う
+       // 【iPhone対策】最初の画面タップ時の音声ロック解除を「完全無音」で行う
         window.addEventListener('click', () => {
+            if (isUnlocked) return;
+
             [musicA, musicB, soundKacha].forEach(audio => {
-                audio.muted = true; // 一旦音を消す
-                audio.play().then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    audio.muted = false; // ロック解除できたら音を戻す
-                }).catch(e => console.log("Unlock wait:", e));
+                audio.muted = true; // 強制ミュート機能を使う
+                let playPromise = audio.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                        audio.muted = false; // 一時停止した後にミュートを解除する
+                    }).catch(e => console.log("Unlock wait:", e));
+                }
             });
+            
+            isUnlocked = true;
             console.log("Audio Unlocked Silently!");
-        }, { once: true });
+        }, { once: true });        
     </script>
 </body>
 </html>
