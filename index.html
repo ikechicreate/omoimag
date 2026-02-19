@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>想いマグ - カスタムメッセージ</title>
+    <title>想いマグ - カセットイン・アニメーション</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
@@ -20,33 +20,48 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0" id="marker-a">
-            <a-entity id="msg-container-a" visible="false" animation="property: position; from: 0 -0.5 0; to: 0 0.2 0.1; dur: 800; easing: easeOutBack">
-                <a-plane width="1.5" height="0.4" material="color: white; opacity: 0.9; transparent: true; shader: flat" position="0 0 0"></a-plane>
-                <a-text id="text-a" value="Now Playing Side A" color="#333" align="center" width="3" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt"></a-text>
+            <a-box id="cassette-a" position="0 0 0.5" scale="0.6 0.4 0.1" material="color: #e91e63; opacity: 0.8"
+                   visible="false"
+                   animation="property: position; from: 0 0 0.5; to: 0 0 0; dur: 500; easing: easeInCubic; startEvents: showAnim">
+            </a-box>
+
+            <a-entity id="msg-container-a" visible="false" position="0 -0.5 0.1">
+                <a-plane width="1.8" height="0.5" material="color: white; opacity: 0.9" position="0 0.6 0"></a-plane>
+                <a-text id="text-a" value="" color="#333" align="center" width="2.5" 
+                        font="https://raw.githubusercontent.com/etiennepinchon/aframe-fonts/master/fonts/notosansjp/NotoSansJP-Bold.json"
+                        shader="msdf"
+                        position="0 0.6 0.01"></a-text>
             </a-entity>
         </a-entity>
 
         <a-entity mindar-image-target="targetIndex: 1" id="marker-b">
-            <a-entity id="msg-container-b" visible="false" animation="property: position; from: 0 -0.5 0; to: 0 0.2 0.1; dur: 800; easing: easeOutBack">
-                <a-plane width="1.5" height="0.4" material="color: white; opacity: 0.9; transparent: true; shader: flat" position="0 0 0"></a-plane>
-                <a-text id="text-b" value="Now Playing Side B" color="#333" align="center" width="3" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt"></a-text>
+            <a-box id="cassette-b" position="0 0 0.5" scale="0.6 0.4 0.1" material="color: #2196f3; opacity: 0.8"
+                   visible="false"
+                   animation="property: position; from: 0 0 0.5; to: 0 0 0; dur: 500; easing: easeInCubic; startEvents: showAnim">
+            </a-box>
+
+            <a-entity id="msg-container-b" visible="false" position="0 -0.5 0.1">
+                <a-plane width="1.8" height="0.5" material="color: white; opacity: 0.9" position="0 0.6 0"></a-plane>
+                <a-text id="text-b" value="" color="#333" align="center" width="2.5" 
+                        font="https://raw.githubusercontent.com/etiennepinchon/aframe-fonts/master/fonts/notosansjp/NotoSansJP-Bold.json"
+                        shader="msdf"
+                        position="0 0.6 0.01"></a-text>
             </a-entity>
         </a-entity>
 
     </a-scene>
 
     <script>
-        // --- メッセージ読み取り機能 ---
-        // URLの ?msg= の後の文字を取得する
         const urlParams = new URLSearchParams(window.location.search);
-        const customMsg = urlParams.get('msg') || "想いマグをかざしてね"; // 指定がない時のデフォルト
+        const customMsg = urlParams.get('msg') || "想いマグをかざしてね";
 
-        // メッセージを画面にセット
         document.querySelector('#text-a').setAttribute('value', customMsg);
         document.querySelector('#text-b').setAttribute('value', customMsg);
 
         const markerA = document.querySelector('#marker-a');
         const markerB = document.querySelector('#marker-b');
+        const cassA = document.querySelector('#cassette-a');
+        const cassB = document.querySelector('#cassette-b');
         const msgA = document.querySelector('#msg-container-a');
         const msgB = document.querySelector('#msg-container-b');
         const musicA = document.querySelector('#music-a');
@@ -57,7 +72,7 @@
         let currentMusic = null;
         let currentMagneticPole = null;
 
-        // 磁気センサー (Android)
+        // 磁気センサー
         if ('Magnetometer' in window) {
             try {
                 const magSensor = new Magnetometer({ frequency: 10 });
@@ -75,22 +90,39 @@
             if (currentMagneticPole === 'N') finalSide = 'A';
             else if (currentMagneticPole === 'S') finalSide = 'B';
 
+            // 演出の実行
             if (finalSide === 'A') {
-                msgA.setAttribute('visible', 'true');
-                msgB.setAttribute('visible', 'false');
+                showVisuals(cassA, msgA);
+                hideVisuals(cassB, msgB);
                 if (currentMusic !== musicA) playContent(musicA, musicB);
             } else {
-                msgB.setAttribute('visible', 'true');
-                msgA.setAttribute('visible', 'false');
+                showVisuals(cassB, msgB);
+                hideVisuals(cassA, msgA);
                 if (currentMusic !== musicB) playContent(musicB, musicA);
             }
+        }
+
+        function showVisuals(cass, msg) {
+            if (cass.getAttribute('visible') === 'false') {
+                cass.setAttribute('visible', 'true');
+                cass.emit('showAnim'); // スロット吸い込みアニメ開始
+                
+                msg.setAttribute('visible', 'true');
+                // メッセージをふわっと浮かせるアニメーション
+                msg.setAttribute('animation', 'property: position; from: 0 -0.5 0.1; to: 0 0 0.1; dur: 800; easing: easeOutBack');
+            }
+        }
+
+        function hideVisuals(cass, msg) {
+            cass.setAttribute('visible', 'false');
+            msg.setAttribute('visible', 'false');
         }
 
         markerA.addEventListener('targetFound', () => handleTargetFound('A'));
         markerB.addEventListener('targetFound', () => handleTargetFound('B'));
         
-        markerA.addEventListener('targetLost', () => { msgA.setAttribute('visible', 'false'); });
-        markerB.addEventListener('targetLost', () => { msgB.setAttribute('visible', 'false'); });
+        markerA.addEventListener('targetLost', () => hideVisuals(cassA, msgA));
+        markerB.addEventListener('targetLost', () => hideVisuals(cassB, msgB));
 
         function playContent(target, stop) {
             currentMusic = target;
@@ -103,7 +135,6 @@
             }, 800);
         }
 
-        // 音声アンロック用
         window.addEventListener('click', () => {
             if (isUnlocked) return;
             [musicA, musicB, soundKacha].forEach(a => { a.muted=true; a.play().then(()=>{a.pause(); a.muted=false;}); });
