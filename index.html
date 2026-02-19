@@ -17,11 +17,11 @@
             <audio id="music-b" src="music/side-b.mp3" preload="auto"></audio>
         </a-assets>
 
-        <a-marker type="image" url="markers/marker-a.patt" id="marker-a">
+        <a-marker type="pattern" url="markers/marker-a.patt" id="marker-a">
             <a-entity text="value: Side A Playing; color: #FF0000" position="0 0.5 0" align="center"></a-entity>
         </a-marker>
 
-        <a-marker type="image" url="markers/marker-b.patt" id="marker-b">
+        <a-marker type="pattern" url="markers/marker-b.patt" id="marker-b">
             <a-entity text="value: Side B Playing; color: #0000FF" position="0 0.5 0" align="center"></a-entity>
         </a-marker>
 
@@ -38,20 +38,17 @@
 
         let isPlaying = false;
 
-        // --- A面認識時の処理 ---
+        // --- A面認識時 ---
         markerA.addEventListener('markerFound', () => {
             if (!isPlaying) {
-                // Androidの場合のみ磁極チェック（将来の実装用プレースホルダー）
                 if (isAndroid) {
                     console.log("Android detected: Checking Magnetometer...");
-                    // ここに磁気センサーの判定ロジックを追加可能
                 }
-                
                 playContent(musicA);
             }
         });
 
-        // --- B面認識時の処理 ---
+        // --- B面認識時 ---
         markerB.addEventListener('markerFound', () => {
             if (!isPlaying) {
                 playContent(musicB);
@@ -60,23 +57,24 @@
 
         function playContent(targetMusic) {
             isPlaying = true;
-            // 「カチャッ」音を再生
             soundKacha.play();
             
-            // 少し遅らせて音楽を開始（カチャッの余韻のため）
             setTimeout(() => {
                 targetMusic.play();
-                console.log("Music started. Even if you move the magnet, it keeps playing.");
+                console.log("Music started.");
             }, 500);
         }
 
-        // iPhone対策：画面タップでオーディオを有効化する案内を出すのがベストです
+        // iPhone/Androidのブラウザ制限を解除するための処理
         window.addEventListener('click', () => {
-            // ブラウザの自動再生制限を解除するためのダミー再生
-            musicA.load();
-            musicB.load();
-            soundKacha.load();
-        });
+            [musicA, musicB, soundKacha].forEach(audio => {
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }).catch(e => console.log("Unlock wait:", e));
+            });
+            console.log("Audio Unlocked!");
+        }, { once: true });
     </script>
 </body>
 </html>
