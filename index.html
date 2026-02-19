@@ -30,39 +30,41 @@
     </a-scene>
 
     <script>
-        const isAndroid = /Android/i.test(navigator.userAgent);
         const markerA = document.querySelector('#marker-a');
         const markerB = document.querySelector('#marker-b');
         const soundKacha = document.querySelector('#insert-sound');
         const musicA = document.querySelector('#music-a');
         const musicB = document.querySelector('#music-b');
 
-        let isPlaying = false;
         let isUnlocked = false;
+        let currentMusic = null; // 今鳴っている曲を記憶します
 
-        // --- A面認識時（MindARでは 'targetFound' という合図を使います） ---
+        // --- A面（0番の画像）が見えた時 ---
         markerA.addEventListener('targetFound', () => {
-            if (!isPlaying) {
-                if (isAndroid) console.log("Android detected");
-                playContent(musicA);
+            if (currentMusic !== musicA) {
+                playContent(musicA, musicB); // Aを鳴らして、Bを止める
             }
         });
 
-        // --- B面認識時 ---
+        // --- B面（1番の画像）が見えた時 ---
         markerB.addEventListener('targetFound', () => {
-            if (!isPlaying) {
-                playContent(musicB);
+            if (currentMusic !== musicB) {
+                playContent(musicB, musicA); // Bを鳴らして、Aを止める
             }
         });
 
-        function playContent(targetMusic) {
-            isPlaying = true;
+        function playContent(targetMusic, stopMusic) {
+            currentMusic = targetMusic; 
+            
+            // もう片方の曲を一時停止して、最初に戻す
+            stopMusic.pause();
+            stopMusic.currentTime = 0;
             
             // カチャッ音を先に再生する
             soundKacha.currentTime = 0;
             soundKacha.play().catch(e => console.log("Kacha Error:", e));
             
-            // 少し遅らせてから音楽をスタートさせる
+            // 少し遅らせてから音楽をスタートさせる（800ミリ秒）
             setTimeout(() => {
                 targetMusic.currentTime = 0;
                 targetMusic.play().catch(e => console.log("Music Error:", e));
@@ -74,14 +76,14 @@
             if (isUnlocked) return;
 
             [musicA, musicB, soundKacha].forEach(audio => {
-                audio.muted = true; // 強制ミュート機能を使う
+                audio.muted = true; 
                 let playPromise = audio.play();
                 
                 if (playPromise !== undefined) {
                     playPromise.then(() => {
                         audio.pause();
                         audio.currentTime = 0;
-                        audio.muted = false; // 一時停止した後にミュートを解除する
+                        audio.muted = false; 
                     }).catch(e => console.log("Unlock wait:", e));
                 }
             });
