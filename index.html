@@ -38,37 +38,73 @@
 
         let isUnlocked = false;
         let currentMusic = null; 
-        let playTimer = null; // 【追加】0.8秒待ちの「予約」を管理するタイマー
+        let playTimer = null; 
 
-        // --- A面（0番の画像）が見えた時 ---
-        markerA.addEventListener('targetFound', () => {
-            if (currentMusic !== musicA) {
-                playContent(musicA, musicB); 
+        // ==========================================
+        // 🧲 【新規追加】磁気センサーの準備（Android専用）
+        // ==========================================
+        let currentMagneticPole = null; // 'N', 'S', または null
+
+        if ('Magnetometer' in window) {
+            try {
+                // 1秒間に10回、磁力を測定する
+                const magSensor = new Magnetometer({ frequency: 10 });
+                magSensor.addEventListener('reading', () => {
+                    // Z軸（手前・奥の磁力）を監視。数値の 100 は磁石の強さに応じて調整可能です。
+                    if (magSensor.z > 100) {
+                        currentMagneticPole = 'N'; // N極ならA面
+                    } else if (magSensor.z < -100) {
+                        currentMagneticPole = 'S'; // S極ならB面
+                    } else {
+                        currentMagneticPole = null; // 磁石が遠い、または無い
+                    }
+                });
+                magSensor.start();
+                console.log("磁気センサー起動成功！");
+            } catch (error) {
+                console.log("磁気センサー非対応（iPhoneなど）:", error);
             }
-        });
+        }
 
-        // --- B面（1番の画像）が見えた時 ---
-        markerB.addEventListener('targetFound', () => {
-            if (currentMusic !== musicB) {
-                playContent(musicB, musicA); 
+        // ==========================================
+        // 🧠 【進化】ハイブリッド判定ロジック
+        // ==========================================
+        function handleTargetFound(detectedByCamera) {
+            let finalDecision = detectedByCamera;
+
+            // もしAndroidで磁気センサーがN/Sをキャッチしていれば、
+            // カメラがAとBを見間違えていても、磁石の答えで強制的に上書き（修正）する！
+            if (currentMagneticPole === 'N') {
+                finalDecision = 'A';
+            } else if (currentMagneticPole === 'S') {
+                finalDecision = 'B';
             }
-        });
 
+            // 最終的な決断に従って曲を鳴らす
+            if (finalDecision === 'A') {
+                if (currentMusic !== musicA) playContent(musicA, musicB);
+            } else {
+                if (currentMusic !== musicB) playContent(musicB, musicA);
+            }
+        }
+
+        // カメラが絵を見つけた時、ハイブリッド判定へ送る
+        markerA.addEventListener('targetFound', () => handleTargetFound('A'));
+        markerB.addEventListener('targetFound', () => handleTargetFound('B'));
+
+        // ==========================================
+        // 🎵 音楽再生とiPhone対策（今まで通り）
+        // ==========================================
         function playContent(targetMusic, stopMusic) {
             currentMusic = targetMusic; 
-            
-            // 【修正1】もし前の曲の「0.8秒待ちの予約」が残っていたら、ここでキャンセル（破棄）する
             if (playTimer) clearTimeout(playTimer);
             
-            // もう片方の曲を確実に一時停止して、最初に戻す
             stopMusic.pause();
             stopMusic.currentTime = 0;
             
-            // カチャッ音を先に再生する
             soundKacha.currentTime = 0;
             soundKacha.play().catch(e => console.log("Kacha Error:", e));
             
-            // 【修正2】0.8秒待った後、本当に今映っている面か最終確認してから再生する
             playTimer = setTimeout(() => {
                 if (currentMusic === targetMusic) {
                     targetMusic.currentTime = 0;
@@ -77,7 +113,6 @@
             }, 800);
         }
 
-       // 【iPhone対策】最初の画面タップ時の音声ロック解除を「完全無音」で行う
         window.addEventListener('click', () => {
             if (isUnlocked) return;
 
