@@ -15,22 +15,54 @@
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity mindar-image-target="targetIndex: 0">
-            <a-plane position="0 0 0" width="1" height="0.5" color="red"></a-plane>
-            <a-text value="SIDE A OK" color="white" align="center" position="0 0 0.1" width="4"></a-text>
+        <a-entity mindar-image-target="targetIndex: 0" id="marker-a">
+            <a-box position="0 0 0.4" scale="1 0.6 0.1" material="color: #FF4081; opacity: 0.8"
+                   animation="property: position; to: 0 0 0; dur: 600; easing: easeOutQuad; startEvents: targetFound">
+            </a-box>
+            <a-plane id="msg-plane-a" position="0 0.6 0" width="1.5" height="0.4" material="transparent: true"
+                   animation="property: position; from: 0 0.3 0; to: 0 0.6 0; dur: 800; easing: easeOutBack; startEvents: targetFound">
+            </a-plane>
         </a-entity>
 
-        <a-entity mindar-image-target="targetIndex: 1">
-            <a-plane position="0 0 0" width="1" height="0.5" color="blue"></a-plane>
-            <a-text value="SIDE B OK" color="white" align="center" position="0 0 0.1" width="4"></a-text>
+        <a-entity mindar-image-target="targetIndex: 1" id="marker-b">
+            <a-box position="0 0 0.4" scale="1 0.6 0.1" material="color: #2196F3; opacity: 0.8"
+                   animation="property: position; to: 0 0 0; dur: 600; easing: easeOutQuad; startEvents: targetFound">
+            </a-box>
+            <a-plane id="msg-plane-b" position="0 0.6 0" width="1.5" height="0.4" material="transparent: true"
+                   animation="property: position; from: 0 0.3 0; to: 0 0.6 0; dur: 800; easing: easeOutBack; startEvents: targetFound">
+            </a-plane>
         </a-entity>
     </a-scene>
 
     <script>
-        // 音声を鳴らす最低限の処理だけ残します
+        // 日本語を画像化する関数
+        function makeTextImg(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = 'bold 40px sans-serif';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            return canvas.toDataURL();
+        }
+
+        // URLテスト用設定
+        const urlParams = new URLSearchParams(window.location.search);
+        const customMsg = decodeURIComponent(urlParams.get('msg') || "想いマグへようこそ");
+        const imgData = makeTextImg(customMsg);
+
+        document.querySelector('#msg-plane-a').setAttribute('src', imgData);
+        document.querySelector('#msg-plane-b').setAttribute('src', imgData);
+
         const musicA = document.querySelector('#music-a');
         const musicB = document.querySelector('#music-b');
         const soundKacha = document.querySelector('#insert-sound');
+        const markerA = document.querySelector('#marker-a');
+        const markerB = document.querySelector('#marker-b');
         let isUnlocked = false;
 
         document.body.addEventListener('click', () => {
@@ -40,6 +72,12 @@
             });
             isUnlocked = true;
         }, {once: true});
+
+        // 磁気センサーなどの再生ロジックは以前のまま
+        markerA.addEventListener('targetFound', () => {
+             soundKacha.currentTime = 0; soundKacha.play();
+             setTimeout(() => { musicA.play(); }, 800);
+        });
     </script>
 </body>
 </html>
