@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>想いマグ - OMOI-MAG AR</title>
+    <title>想いマグ - カスタムメッセージ</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
@@ -20,118 +20,95 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0" id="marker-a">
-            <a-box position="0 0 0" material="color: red; opacity: 0.8;" scale="0.5 0.5 0.5"></a-box>
+            <a-entity id="msg-container-a" visible="false" animation="property: position; from: 0 -0.5 0; to: 0 0.2 0.1; dur: 800; easing: easeOutBack">
+                <a-plane width="1.5" height="0.4" material="color: white; opacity: 0.9; transparent: true; shader: flat" position="0 0 0"></a-plane>
+                <a-text id="text-a" value="Now Playing Side A" color="#333" align="center" width="3" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt"></a-text>
+            </a-entity>
         </a-entity>
 
         <a-entity mindar-image-target="targetIndex: 1" id="marker-b">
-            <a-entity text="value: Side B Playing; color: #0000FF; width: 4" position="0 0 0" align="center" scale="2 2 2"></a-entity>
+            <a-entity id="msg-container-b" visible="false" animation="property: position; from: 0 -0.5 0; to: 0 0.2 0.1; dur: 800; easing: easeOutBack">
+                <a-plane width="1.5" height="0.4" material="color: white; opacity: 0.9; transparent: true; shader: flat" position="0 0 0"></a-plane>
+                <a-text id="text-b" value="Now Playing Side B" color="#333" align="center" width="3" font="https://cdn.aframe.io/fonts/Exo2Bold.fnt"></a-text>
+            </a-entity>
         </a-entity>
 
     </a-scene>
 
     <script>
+        // --- メッセージ読み取り機能 ---
+        // URLの ?msg= の後の文字を取得する
+        const urlParams = new URLSearchParams(window.location.search);
+        const customMsg = urlParams.get('msg') || "想いマグをかざしてね"; // 指定がない時のデフォルト
+
+        // メッセージを画面にセット
+        document.querySelector('#text-a').setAttribute('value', customMsg);
+        document.querySelector('#text-b').setAttribute('value', customMsg);
+
         const markerA = document.querySelector('#marker-a');
         const markerB = document.querySelector('#marker-b');
-        const soundKacha = document.querySelector('#insert-sound');
+        const msgA = document.querySelector('#msg-container-a');
+        const msgB = document.querySelector('#msg-container-b');
         const musicA = document.querySelector('#music-a');
         const musicB = document.querySelector('#music-b');
+        const soundKacha = document.querySelector('#insert-sound');
 
         let isUnlocked = false;
-        let currentMusic = null; 
-        let playTimer = null; 
+        let currentMusic = null;
+        let currentMagneticPole = null;
 
-        // ==========================================
-        // 🧲 【新規追加】磁気センサーの準備（Android専用）
-        // ==========================================
-        let currentMagneticPole = null; // 'N', 'S', または null
-
+        // 磁気センサー (Android)
         if ('Magnetometer' in window) {
             try {
-                // 1秒間に10回、磁力を測定する
                 const magSensor = new Magnetometer({ frequency: 10 });
                 magSensor.addEventListener('reading', () => {
-                    // Z軸（手前・奥の磁力）を監視。数値の 100 は磁石の強さに応じて調整可能です。
-                    if (magSensor.z > 100) {
-                        currentMagneticPole = 'N'; // N極ならA面
-                    } else if (magSensor.z < -100) {
-                        currentMagneticPole = 'S'; // S極ならB面
-                    } else {
-                        currentMagneticPole = null; // 磁石が遠い、または無い
-                    }
+                    if (magSensor.z > 80) currentMagneticPole = 'N';
+                    else if (magSensor.z < -80) currentMagneticPole = 'S';
+                    else currentMagneticPole = null;
                 });
                 magSensor.start();
-                console.log("磁気センサー起動成功！");
-            } catch (error) {
-                console.log("磁気センサー非対応（iPhoneなど）:", error);
-            }
+            } catch (e) { console.log("Mag sensor error"); }
         }
 
-        // ==========================================
-        // 🧠 【進化】ハイブリッド判定ロジック
-        // ==========================================
-        function handleTargetFound(detectedByCamera) {
-            let finalDecision = detectedByCamera;
+        function handleTargetFound(camSide) {
+            let finalSide = camSide;
+            if (currentMagneticPole === 'N') finalSide = 'A';
+            else if (currentMagneticPole === 'S') finalSide = 'B';
 
-            // もしAndroidで磁気センサーがN/Sをキャッチしていれば、
-            // カメラがAとBを見間違えていても、磁石の答えで強制的に上書き（修正）する！
-            if (currentMagneticPole === 'N') {
-                finalDecision = 'A';
-            } else if (currentMagneticPole === 'S') {
-                finalDecision = 'B';
-            }
-
-            // 最終的な決断に従って曲を鳴らす
-            if (finalDecision === 'A') {
+            if (finalSide === 'A') {
+                msgA.setAttribute('visible', 'true');
+                msgB.setAttribute('visible', 'false');
                 if (currentMusic !== musicA) playContent(musicA, musicB);
             } else {
+                msgB.setAttribute('visible', 'true');
+                msgA.setAttribute('visible', 'false');
                 if (currentMusic !== musicB) playContent(musicB, musicA);
             }
         }
 
-        // カメラが絵を見つけた時、ハイブリッド判定へ送る
         markerA.addEventListener('targetFound', () => handleTargetFound('A'));
         markerB.addEventListener('targetFound', () => handleTargetFound('B'));
+        
+        markerA.addEventListener('targetLost', () => { msgA.setAttribute('visible', 'false'); });
+        markerB.addEventListener('targetLost', () => { msgB.setAttribute('visible', 'false'); });
 
-        // ==========================================
-        // 🎵 音楽再生とiPhone対策（今まで通り）
-        // ==========================================
-        function playContent(targetMusic, stopMusic) {
-            currentMusic = targetMusic; 
-            if (playTimer) clearTimeout(playTimer);
-            
-            stopMusic.pause();
-            stopMusic.currentTime = 0;
-            
+        function playContent(target, stop) {
+            currentMusic = target;
+            stop.pause();
+            stop.currentTime = 0;
             soundKacha.currentTime = 0;
-            soundKacha.play().catch(e => console.log("Kacha Error:", e));
-            
-            playTimer = setTimeout(() => {
-                if (currentMusic === targetMusic) {
-                    targetMusic.currentTime = 0;
-                    targetMusic.play().catch(e => console.log("Music Error:", e));
-                }
+            soundKacha.play();
+            setTimeout(() => {
+                if (currentMusic === target) target.play();
             }, 800);
         }
 
+        // 音声アンロック用
         window.addEventListener('click', () => {
             if (isUnlocked) return;
-
-            [musicA, musicB, soundKacha].forEach(audio => {
-                audio.muted = true; 
-                let playPromise = audio.play();
-                
-                if (playPromise !== undefined) {
-                    playPromise.then(() => {
-                        audio.pause();
-                        audio.currentTime = 0;
-                        audio.muted = false; 
-                    }).catch(e => console.log("Unlock wait:", e));
-                }
-            });
-            
+            [musicA, musicB, soundKacha].forEach(a => { a.muted=true; a.play().then(()=>{a.pause(); a.muted=false;}); });
             isUnlocked = true;
-            console.log("Audio Unlocked Silently!");
-        }, { once: true });        
+        }, {once: true});
     </script>
 </body>
 </html>
