@@ -16,18 +16,26 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0" id="marker-a">
-            <a-box position="0 0 0" width="1" height="0.6" depth="0.02" material="color: #FF4081; opacity: 0.8"></a-box>
-            <a-plane id="msg-a" position="0 0 0.02" width="0.8" height="0.2" color="white"></a-plane>
+            <a-box id="box-a" position="0 0 0.4" width="1" height="0.6" depth="0.02" material="color: #FF4081; opacity: 0.8"
+                   animation="property: position; from: 0 0 0.4; to: 0 0 0; dur: 600; easing: easeOutCubic; startEvents: showAnim">
+            </a-box>
+            <a-plane id="msg-a" position="0 0.3 0.03" width="0.8" height="0.2" color="white"
+                   animation="property: position; from: 0 0 0.03; to: 0 0.6 0.03; dur: 800; easing: easeOutBack; startEvents: showAnim">
+            </a-plane>
         </a-entity>
 
         <a-entity mindar-image-target="targetIndex: 1" id="marker-b">
-            <a-box position="0 0 0" width="1" height="0.6" depth="0.02" material="color: #2196F3; opacity: 0.8"></a-box>
-            <a-plane id="msg-b" position="0 0 0.02" width="0.8" height="0.2" color="white"></a-plane>
+            <a-box id="box-b" position="0 0 0.4" width="1" height="0.6" depth="0.02" material="color: #2196F3; opacity: 0.8"
+                   animation="property: position; from: 0 0 0.4; to: 0 0 0; dur: 600; easing: easeOutCubic; startEvents: showAnim">
+            </a-box>
+            <a-plane id="msg-b" position="0 0.3 0.03" width="0.8" height="0.2" color="white"
+                   animation="property: position; from: 0 0 0.03; to: 0 0.6 0.03; dur: 800; easing: easeOutBack; startEvents: showAnim">
+            </a-plane>
         </a-entity>
     </a-scene>
 
     <script>
-        // 文字画像作成（変更なし）
+        // 文字画像作成
         function drawText(text) {
             const canvas = document.createElement('canvas');
             canvas.width = 800; canvas.height = 200;
@@ -67,48 +75,34 @@
             } catch (e) {}
         }
 
-        // 全ての音を止める関数
-        function stopAllMusic() {
-            musicA.pause();
-            musicB.pause();
-            musicA.currentTime = 0;
-            musicB.currentTime = 0;
-        }
-
         function handleFound(foundSide) {
             let finalSide = foundSide;
-            // 磁極がハッキリしている時だけ上書き
             if (currentMagneticPole === 'N') finalSide = 'A';
             if (currentMagneticPole === 'S') finalSide = 'B';
 
-            // 同じ面なら何もしない
             if (finalSide === lastPlayedSide) return;
-
-            // --- ここが同時再生防止のキモ ---
             lastPlayedSide = finalSide;
-            stopAllMusic(); // まず全部消す！
-            
+
+            // アニメーション開始の合図を送る
+            const box = document.querySelector('#box-' + finalSide.toLowerCase());
+            const msg = document.querySelector('#msg-' + finalSide.toLowerCase());
+            box.emit('showAnim');
+            msg.emit('showAnim');
+
+            musicA.pause(); musicB.pause();
             soundKacha.currentTime = 0;
             soundKacha.play();
 
             setTimeout(() => {
-                // 再生直前にもう一度チェック（一瞬で面が変わった場合のため）
-                if (lastPlayedSide === finalSide) {
-                    const target = (finalSide === 'A') ? musicA : musicB;
-                    target.play().catch(e => {});
-                }
+                const target = (finalSide === 'A') ? musicA : musicB;
+                target.play().catch(e => {});
             }, 600);
         }
 
         document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
         document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
 
-        // 磁極の変化だけでも曲を変えるように追加
-        setInterval(() => {
-            if (currentMagneticPole === 'N' && lastPlayedSide !== 'A') handleFound('A');
-            if (currentMagneticPole === 'S' && lastPlayedSide !== 'B') handleFound('B');
-        }, 500);
-
+        // 再生ロック解除
         const unlock = () => {
             [musicA, musicB, soundKacha].forEach(a => { a.play(); a.pause(); });
             document.body.removeEventListener('click', unlock);
