@@ -27,7 +27,7 @@
     </a-scene>
 
     <script>
-        // 文字画像作成
+        // 文字画像作成（変更なし）
         function drawText(text) {
             const canvas = document.createElement('canvas');
             canvas.width = 800; canvas.height = 200;
@@ -54,12 +54,11 @@
         let lastPlayedSide = null;
         let currentMagneticPole = null;
 
-        // 磁気センサー (Android用)
+        // 磁気センサー
         if ('Magnetometer' in window) {
             try {
                 const magSensor = new Magnetometer({ frequency: 10 });
                 magSensor.addEventListener('reading', () => {
-                    // 数値を100に戻して反応を良くします
                     if (magSensor.z > 100) currentMagneticPole = 'N';
                     else if (magSensor.z < -100) currentMagneticPole = 'S';
                     else currentMagneticPole = null;
@@ -68,40 +67,52 @@
             } catch (e) {}
         }
 
+        // 全ての音を止める関数
+        function stopAllMusic() {
+            musicA.pause();
+            musicB.pause();
+            musicA.currentTime = 0;
+            musicB.currentTime = 0;
+        }
+
         function handleFound(foundSide) {
-            // 磁極があればそれを優先、なければ見えた方を採用
-            let finalDecision = foundSide;
-            if (currentMagneticPole === 'N') finalDecision = 'A';
-            if (currentMagneticPole === 'S') finalDecision = 'B';
+            let finalSide = foundSide;
+            // 磁極がハッキリしている時だけ上書き
+            if (currentMagneticPole === 'N') finalSide = 'A';
+            if (currentMagneticPole === 'S') finalSide = 'B';
 
-            // 同じ面をずっと見ているときは何もしない
-            if (finalDecision === lastPlayedSide) return;
+            // 同じ面なら何もしない
+            if (finalSide === lastPlayedSide) return;
 
-            // 違う面になった瞬間に切り替え
-            lastPlayedSide = finalDecision;
-            
-            musicA.pause(); musicB.pause();
-            musicA.currentTime = 0; musicB.currentTime = 0;
+            // --- ここが同時再生防止のキモ ---
+            lastPlayedSide = finalSide;
+            stopAllMusic(); // まず全部消す！
             
             soundKacha.currentTime = 0;
-            soundKacha.play().catch(e => console.log("Sound Error"));
+            soundKacha.play();
 
             setTimeout(() => {
-                const target = (finalDecision === 'A') ? musicA : musicB;
-                target.play().catch(e => console.log("Music Error"));
+                // 再生直前にもう一度チェック（一瞬で面が変わった場合のため）
+                if (lastPlayedSide === finalSide) {
+                    const target = (finalSide === 'A') ? musicA : musicB;
+                    target.play().catch(e => {});
+                }
             }, 600);
         }
 
         document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
         document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
 
-        // 強力な再生アンロック（画面のどこを触ってもOK）
+        // 磁極の変化だけでも曲を変えるように追加
+        setInterval(() => {
+            if (currentMagneticPole === 'N' && lastPlayedSide !== 'A') handleFound('A');
+            if (currentMagneticPole === 'S' && lastPlayedSide !== 'B') handleFound('B');
+        }, 500);
+
         const unlock = () => {
             [musicA, musicB, soundKacha].forEach(a => { a.play(); a.pause(); });
-            document.body.removeEventListener('touchstart', unlock);
             document.body.removeEventListener('click', unlock);
         };
-        document.body.addEventListener('touchstart', unlock);
         document.body.addEventListener('click', unlock);
     </script>
 </body>
