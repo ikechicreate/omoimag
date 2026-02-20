@@ -2,58 +2,74 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>想いマグ - 全画面アニメーション</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        /* 全画面動画オーバーレイのデザイン設定 */
+        #anime-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: black;
+            z-index: 9999; /* ARカメラより手前に表示 */
+            display: none; /* 最初は隠しておく */
+            justify-content: center; align-items: center;
+        }
+        #anime-overlay video {
+            width: 100%; height: 100%;
+            object-fit: cover; /* 画面いっぱいに隙間なく表示 */
+        }
+        /* メッセージ表示（動画の上に重ねる） */
+        #overlay-msg {
+            position: absolute;
+            bottom: 10%; width: 90%; text-align: center;
+            color: white; font-size: 24px; font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            display: none; /* 動画がない時は隠す */
+        }
+    </style>
 </head>
 <body style="margin: 0; overflow: hidden;">
+
+    <div id="anime-overlay">
+        <video id="video-a" src="videos/video-a.mp4" playsinline webkit-playsinline muted loop style="display:none;"></video>
+        <video id="video-b" src="videos/video-b.mp4" playsinline webkit-playsinline muted loop style="display:none;"></video>
+        
+        <div id="overlay-msg"></div>
+    </div>
+
     <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 100;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
             <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
             <audio id="music-a" src="music/side-a.mp3" preload="auto"></audio>
             <audio id="music-b" src="music/side-b.mp3" preload="auto"></audio>
         </a-assets>
-
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-        <a-entity mindar-image-target="targetIndex: 0" id="marker-a">
-            <a-box id="box-a" position="0 0 0.4" width="1" height="0.6" depth="0.02" material="color: #FF4081; opacity: 0.8"></a-box>
-            <a-plane id="msg-a" position="0 0 0.03" width="0.8" height="0.2" color="white"></a-plane>
-        </a-entity>
-
-        <a-entity mindar-image-target="targetIndex: 1" id="marker-b">
-            <a-box id="box-b" position="0 0 0.4" width="1" height="0.6" depth="0.02" material="color: #2196F3; opacity: 0.8"></a-box>
-            <a-plane id="msg-b" position="0 0 0.03" width="0.8" height="0.2" color="white"></a-plane>
-        </a-entity>
+        <a-entity mindar-image-target="targetIndex: 0" id="marker-a"></a-entity>
+        <a-entity mindar-image-target="targetIndex: 1" id="marker-b"></a-entity>
     </a-scene>
 
     <script>
-        // 文字画像作成（変更なし）
-        function drawText(text) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 800; canvas.height = 200;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.font = "bold 60px sans-serif"; ctx.fillStyle = "#333333";
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(text, 400, 100);
-            return canvas.toDataURL();
-        }
-
-        window.onload = () => {
-            const params = new URLSearchParams(window.location.search);
-            const msg = params.get('msg') || "想いマグへようこそ";
-            const img = drawText(decodeURIComponent(msg));
-            document.querySelector('#msg-a').setAttribute('src', img);
-            document.querySelector('#msg-b').setAttribute('src', img);
-        };
-
+        const overlay = document.querySelector('#anime-overlay');
+        const vidA = document.querySelector('#video-a');
+        const vidB = document.querySelector('#video-b');
+        const overlayMsg = document.querySelector('#overlay-msg');
         const musicA = document.querySelector('#music-a');
         const musicB = document.querySelector('#music-b');
         const soundKacha = document.querySelector('#insert-sound');
-        
-        let activeSide = null;      // 今鳴っている面
-        let playTimer = null;       // 音楽再生の「予約」を入れる箱
+
+        let activeSide = null;
+        let playTimer = null;
         let currentMagneticPole = null;
+
+        // URLからメッセージ取得
+        const params = new URLSearchParams(window.location.search);
+        const customMsg = decodeURIComponent(params.get('msg') || "");
+        if(customMsg) {
+            overlayMsg.textContent = customMsg;
+            overlayMsg.style.display = 'block';
+        }
 
         // 磁気センサー
         if ('Magnetometer' in window) {
@@ -68,59 +84,67 @@
             } catch (e) {}
         }
 
-        // --- 同時再生とアニメーション停止を防ぐ心臓部 ---
+        // 全停止＆リセット関数
+        function stopEverything() {
+            if (playTimer) clearTimeout(playTimer);
+            musicA.pause(); musicA.currentTime = 0;
+            musicB.pause(); musicB.currentTime = 0;
+            vidA.pause(); vidA.currentTime = 0; vidA.style.display = 'none';
+            vidB.pause(); vidB.currentTime = 0; vidB.style.display = 'none';
+            overlay.style.display = 'none'; // オーバーレイを隠してカメラに戻す
+            activeSide = null;
+        }
+
         function handleFound(detectedSide) {
             let finalSide = detectedSide;
             if (currentMagneticPole === 'N') finalSide = 'A';
             if (currentMagneticPole === 'S') finalSide = 'B';
 
-            // すでに同じ面が実行中なら何もしない
             if (activeSide === finalSide) return;
+            
+            // 一旦すべてリセット
+            stopEverything();
             activeSide = finalSide;
 
-            // 1. 【超重要】前の曲の「再生予約」が残っていたらキャンセルして消し去る！
-            if (playTimer !== null) {
-                clearTimeout(playTimer);
-            }
-
-            // 2. 今鳴っている音を全て強制停止
-            musicA.pause(); musicA.currentTime = 0;
-            musicB.pause(); musicB.currentTime = 0;
-
-            // 3. アニメーションの強制リセット＆再実行
-            const box = document.querySelector('#box-' + finalSide.toLowerCase());
-            const msg = document.querySelector('#msg-' + finalSide.toLowerCase());
-
-            // 一度アニメーションの設定を剥がす
-            box.removeAttribute('animation');
-            msg.removeAttribute('animation');
-
-            // ほんの一瞬（10ミリ秒）待ってから、新しいアニメーションを注入する（これで必ず動く）
-            setTimeout(() => {
-                box.setAttribute('animation', 'property: position; from: 0 0 0.4; to: 0 0 0; dur: 600; easing: easeOutCubic');
-                msg.setAttribute('animation', 'property: position; from: 0 0 0.03; to: 0 0.6 0.03; dur: 800; easing: easeOutBack');
-            }, 10);
-
-            // 4. カチャ音を鳴らす
+            // カチャ音
             soundKacha.currentTime = 0;
             soundKacha.play().catch(e=>{});
 
-            // 5. 新しく曲の「再生予約」を入れる
+            // 少し遅れて全画面動画＆音楽スタート
             playTimer = setTimeout(() => {
+                // 1. オーバーレイを表示（画面を黒くする）
+                overlay.style.display = 'flex';
+                
+                // 2. 対象の動画を表示して再生
+                const targetVid = (finalSide === 'A') ? vidA : vidB;
+                targetVid.style.display = 'block';
+                targetVid.muted = false; // 音声をオンにする
+                targetVid.play().catch(e => console.log("Video play error (tap needed?)", e));
+
+                // 3. 対象の音楽を再生（もし動画に音が含まれてない場合用）
                 const targetMusic = (finalSide === 'A') ? musicA : musicB;
                 targetMusic.play().catch(e=>{});
+
             }, 600);
         }
 
         document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
         document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
 
-        // 再生ロック解除
+        // マーカーを見失ったら、動画を止めてカメラ画面に戻す
+        // (ずっと流し続けたい場合は、この2行を削除してください)
+        document.querySelector('#marker-a').addEventListener('targetLost', stopEverything);
+        document.querySelector('#marker-b').addEventListener('targetLost', stopEverything);
+
+        // 再生ロック解除（動画も含む）
         const unlock = () => {
             [musicA, musicB, soundKacha].forEach(a => { a.play(); a.pause(); });
+            [vidA, vidB].forEach(v => { v.play(); v.pause(); }); // 動画も一度再生して許可を得る
             document.body.removeEventListener('click', unlock);
+            document.body.removeEventListener('touchstart', unlock);
         };
-        document.body.addEventListener('click', unlock);
+        document.body.addEventListener('click', unlock, {once:true});
+        document.body.addEventListener('touchstart', unlock, {once:true});
     </script>
 </body>
 </html>
