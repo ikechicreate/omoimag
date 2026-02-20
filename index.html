@@ -6,7 +6,6 @@
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
-        /* テレビアニメのように画面いっぱいに表示する設定 */
         #anime-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: black; z-index: 9999; display: none;
@@ -16,7 +15,6 @@
             width: 100%; height: 100%; object-fit: cover;
             position: absolute; top: 0; left: 0;
         }
-        /* お年寄りでも読みやすいフチ取りメッセージ */
         #overlay-msg {
             position: absolute; bottom: 15%; width: 90%; left: 5%; text-align: center;
             color: white; font-size: 28px; font-weight: bold;
@@ -28,9 +26,18 @@
             font-size: 14px; border: 1px solid rgba(255,255,255,0.7);
             padding: 5px 10px; border-radius: 5px; z-index: 10;
         }
+        /* シミュレーション用ボタン（大きくしました） */
+        #sim-btn {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 10000; background: #e91e63; color: white; border: none;
+            padding: 20px 40px; border-radius: 50px; font-size: 20px; font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: none;
+        }
     </style>
 </head>
 <body style="margin: 0; overflow: hidden;">
+
+    <button id="sim-btn" onclick="startSim()">🎬 仕上がりを確認する</button>
 
     <div id="anime-overlay">
         <video id="video-a" src="videos/video-a.mp4" playsinline webkit-playsinline></video>
@@ -41,7 +48,7 @@
         <div id="close-hint">タップで閉じる</div>
     </div>
 
-    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 100;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene id="ar-scene" mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 100;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
             <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
             <audio id="music-a" src="music/music-a.mp3" preload="auto"></audio>
@@ -56,36 +63,33 @@
 
     <script>
         const overlay = document.querySelector('#anime-overlay');
+        const simBtn = document.querySelector('#sim-btn');
         const vidA = document.querySelector('#video-a'); const vidB = document.querySelector('#video-b');
         const imgA = document.querySelector('#img-a'); const imgB = document.querySelector('#img-b');
         const overlayMsg = document.querySelector('#overlay-msg');
         const soundKacha = document.querySelector('#insert-sound');
 
-        // URLから設定を読み込む
         const params = new URLSearchParams(window.location.search);
+        const isPreview = params.get('preview') === 'true'; // プレビューモード判定
         const selectedSongId = params.get('song') || 'music-a';
         const customMsg = decodeURIComponent(params.get('msg') || "");
-        
         if(customMsg) { overlayMsg.textContent = customMsg; overlayMsg.style.display = 'block'; }
 
-        let activeSide = null;
-        let currentMagneticPole = null;
+        // プレビューモードならボタンを表示
+        if (isPreview) {
+            simBtn.style.display = 'block';
+        }
 
-        // 磁気センサー判定（ARディスプレイ＋複合センサー判定の要です）
-        if ('Magnetometer' in window) {
-            try {
-                const magSensor = new Magnetometer({ frequency: 10 });
-                magSensor.addEventListener('reading', () => {
-                    if (magSensor.z > 250) currentMagneticPole = 'N';
-                    else if (magSensor.z < -250) currentMagneticPole = 'S';
-                    else currentMagneticPole = null;
-                });
-                magSensor.start();
-            } catch (e) {}
+        let activeSide = null;
+
+        function startSim() {
+            simBtn.style.display = 'none';
+            handleFound('A'); // A面としてシミュレーション開始
         }
 
         function closeAll() {
             overlay.style.display = 'none';
+            if (isPreview) simBtn.style.display = 'block';
             vidA.pause(); vidA.currentTime = 0; vidA.style.display = 'none';
             vidB.pause(); vidB.currentTime = 0; vidB.style.display = 'none';
             imgA.style.display = 'none'; imgB.style.display = 'none';
@@ -100,25 +104,16 @@
         vidB.addEventListener('ended', () => { vidB.style.display='none'; imgB.style.display='block'; });
         overlay.addEventListener('click', closeAll);
 
-        function handleFound(detectedSide) {
-            let finalSide = detectedSide;
-            // 磁気センサーがハッキリしていれば優先する
-            if (currentMagneticPole === 'N') finalSide = 'A';
-            if (currentMagneticPole === 'S') finalSide = 'B';
-
+        function handleFound(side) {
             if (activeSide !== null) return;
-            activeSide = finalSide;
-
+            activeSide = side;
             soundKacha.currentTime = 0;
             soundKacha.play().catch(e=>{});
-
             setTimeout(() => {
                 overlay.style.display = 'flex';
-                const v = (finalSide === 'A') ? vidA : vidB;
+                const v = (side === 'A') ? vidA : vidB;
                 v.style.display = 'block';
                 v.play().catch(e=>{});
-                
-                // setup.htmlで選ばれた曲を再生
                 const targetMusic = document.getElementById(selectedSongId);
                 if(targetMusic) targetMusic.play().catch(e=>{});
             }, 600);
@@ -127,18 +122,16 @@
         document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
         document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
 
-        // 最初のタップで全音声をアンロック
+        // 音声アンロック
         const unlock = () => {
             ['music-a','music-b','music-c','music-d', 'insert-sound'].forEach(id => {
                 const a = document.getElementById(id);
                 if(a) { a.play(); a.pause(); }
             });
-            vidA.play(); vidA.pause(); vidB.play(); vidB.pause();
+            vidA.play(); vidA.pause();
             document.body.removeEventListener('click', unlock);
-            document.body.removeEventListener('touchstart', unlock);
         };
         document.body.addEventListener('click', unlock, {once:true});
-        document.body.addEventListener('touchstart', unlock, {once:true});
     </script>
 </body>
 </html>
