@@ -6,24 +6,28 @@
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
+        /* 全画面表示エリアのデザイン */
         #anime-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: black; z-index: 9999; display: none;
             justify-content: center; align-items: center;
         }
-        #anime-overlay video {
+        /* 動画と静止画の共通デザイン */
+        #anime-overlay video, #anime-overlay img.end-card {
             width: 100%; height: 100%; object-fit: cover;
+            position: absolute; top: 0; left: 0;
         }
+        /* メッセージ */
         #overlay-msg {
-            position: absolute; bottom: 10%; width: 90%; text-align: center;
+            position: absolute; bottom: 15%; width: 90%; text-align: center;
             color: white; font-size: 24px; font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.7); display: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7); display: none; z-index: 10;
         }
-        /* 動画再生中に「タップで戻る」という案内を小さく表示 */
+        /* 案内ヒント */
         #close-hint {
             position: absolute; top: 5%; right: 5%; color: rgba(255,255,255,0.7);
             font-size: 14px; border: 1px solid rgba(255,255,255,0.7);
-            padding: 5px 10px; border-radius: 5px;
+            padding: 5px 10px; border-radius: 5px; z-index: 10;
         }
     </style>
 </head>
@@ -33,6 +37,9 @@
         <video id="video-a" src="videos/video-a.mp4" playsinline webkit-playsinline style="display:none;"></video>
         <video id="video-b" src="videos/video-b.mp4" playsinline webkit-playsinline style="display:none;"></video>
         
+        <img id="img-a" class="end-card" src="images/end-a.jpg" style="display:none;">
+        <img id="img-b" class="end-card" src="images/end-b.jpg" style="display:none;">
+
         <div id="overlay-msg"></div>
         <div id="close-hint">タップで閉じる</div>
     </div>
@@ -50,25 +57,22 @@
 
     <script>
         const overlay = document.querySelector('#anime-overlay');
-        const vidA = document.querySelector('#video-a');
-        const vidB = document.querySelector('#video-b');
+        const vidA = document.querySelector('#video-a'); const vidB = document.querySelector('#video-b');
+        const imgA = document.querySelector('#img-a'); const imgB = document.querySelector('#img-b');
         const overlayMsg = document.querySelector('#overlay-msg');
-        const musicA = document.querySelector('#music-a');
-        const musicB = document.querySelector('#music-b');
+        const closeHint = document.querySelector('#close-hint');
+        const musicA = document.querySelector('#music-a'); const musicB = document.querySelector('#music-b');
         const soundKacha = document.querySelector('#insert-sound');
 
-        let activeSide = null; // 現在再生中の面を記憶
+        let activeSide = null;
         let currentMagneticPole = null;
 
-        // URLメッセージ
+        // URLメッセージ取得
         const params = new URLSearchParams(window.location.search);
         const customMsg = decodeURIComponent(params.get('msg') || "");
-        if(customMsg) {
-            overlayMsg.textContent = customMsg;
-            overlayMsg.style.display = 'block';
-        }
+        if(customMsg) { overlayMsg.textContent = customMsg; overlayMsg.style.display = 'block'; }
 
-        // 磁気センサー（誤作動を防ぐため、数値を100から250に引き上げました）
+        // 磁気センサー
         if ('Magnetometer' in window) {
             try {
                 const magSensor = new Magnetometer({ frequency: 10 });
@@ -81,21 +85,40 @@
             } catch (e) {}
         }
 
-        // --- 動画を終了してカメラに戻る処理 ---
-        function closeVideo() {
+        // --- 完全に閉じてカメラに戻る関数 ---
+        function closeAll() {
             overlay.style.display = 'none';
+            // 全てをリセット＆非表示
             vidA.pause(); vidA.currentTime = 0; vidA.style.display = 'none';
             vidB.pause(); vidB.currentTime = 0; vidB.style.display = 'none';
+            imgA.style.display = 'none'; imgB.style.display = 'none';
             musicA.pause(); musicA.currentTime = 0;
             musicB.pause(); musicB.currentTime = 0;
-            activeSide = null; // リセット（これで再度かざした時に反応するようになります）
+            activeSide = null; // 次の認識を許可
+            closeHint.textContent = "タップで閉じる"; // ヒントを元に戻す
         }
 
-        // 動画が最後まで再生されたら自動で閉じる
-        vidA.addEventListener('ended', closeVideo);
-        vidB.addEventListener('ended', closeVideo);
-        // 画面をタップしても途中で閉じられるようにする
-        overlay.addEventListener('click', closeVideo);
+        // --- 動画終了時に静止画に切り替える関数 ---
+        function switchToImage(side) {
+            // 動画と音楽を止めて隠す
+            vidA.pause(); vidA.style.display = 'none';
+            vidB.pause(); vidB.style.display = 'none';
+            musicA.pause(); musicB.pause();
+
+            // 対応する静止画を表示
+            if (side === 'A') imgA.style.display = 'block';
+            else imgB.style.display = 'block';
+
+            // ヒントの文字を変更（分かりやすくする）
+            closeHint.textContent = "タップしてカメラに戻る";
+        }
+
+        // 動画が最後まで終わったら「静止画切り替え関数」を呼ぶ
+        vidA.addEventListener('ended', () => switchToImage('A'));
+        vidB.addEventListener('ended', () => switchToImage('B'));
+
+        // 画面タップで「完全に閉じる関数」を呼ぶ
+        overlay.addEventListener('click', closeAll);
 
         // --- 再生開始ロジック ---
         function handleFound(detectedSide) {
@@ -103,45 +126,37 @@
             if (currentMagneticPole === 'N') finalSide = 'A';
             if (currentMagneticPole === 'S') finalSide = 'B';
 
-            // 【超重要】すでにその面の動画が再生中なら、何もしない（これでカチャカチャが止まります）
+            // すでに再生中または終了画像表示中なら無視
             if (activeSide === finalSide) return;
-
-            // 違う面の動画が流れていれば一旦リセット
-            if (activeSide !== null) {
-                closeVideo();
-            }
+            if (activeSide !== null) closeAll(); // 違う面ならリセット
 
             activeSide = finalSide;
 
-            // カチャ音
             soundKacha.currentTime = 0;
             soundKacha.play().catch(e=>{});
 
             setTimeout(() => {
                 overlay.style.display = 'flex';
-                
                 const targetVid = (finalSide === 'A') ? vidA : vidB;
                 targetVid.style.display = 'block';
                 targetVid.play().catch(e => {});
-
                 const targetMusic = (finalSide === 'A') ? musicA : musicB;
                 targetMusic.play().catch(e=>{});
-
             }, 600);
         }
 
         document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
         document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
 
-        // 【削除しました】targetLostで停止する機能を消したので、カメラを離しても最後まで再生されます！
-
         // 最初のタップでロック解除
         const unlock = () => {
             [musicA, musicB, soundKacha].forEach(a => { a.play(); a.pause(); });
             [vidA, vidB].forEach(v => { v.play(); v.pause(); });
             document.body.removeEventListener('click', unlock);
+            document.body.removeEventListener('touchstart', unlock);
         };
         document.body.addEventListener('click', unlock, {once:true});
+        document.body.addEventListener('touchstart', unlock, {once:true});
     </script>
 </body>
 </html>
