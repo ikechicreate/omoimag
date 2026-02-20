@@ -6,7 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body style="margin: 0; overflow: hidden;">
-    <a-scene mindar-image="imageTargetSrc: targets/targets.mind;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 1000;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
             <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
             <audio id="music-a" src="music/side-a.mp3" preload="auto"></audio>
@@ -27,34 +27,24 @@
     </a-scene>
 
     <script>
-        // 文字を画像にする関数（高画質に調整しました）
         function drawText(text) {
             const canvas = document.createElement('canvas');
             canvas.width = 800; canvas.height = 200;
             const ctx = canvas.getContext('2d');
-            
-            // 白い背景
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // 濃いグレーの文字
             ctx.font = "bold 60px sans-serif";
             ctx.fillStyle = "#333333";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(text, 400, 100);
-            
             return canvas.toDataURL();
         }
 
-        // ページが読み込まれたら実行
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
-            // URLから文字を取得（なければ「想いマグへようこそ」）
             const msg = params.get('msg') || "想いマグへようこそ";
             const img = drawText(decodeURIComponent(msg));
-            
-            // 画像を板に貼り付ける
             document.querySelector('#msg-a').setAttribute('src', img);
             document.querySelector('#msg-b').setAttribute('src', img);
         };
@@ -62,26 +52,26 @@
         const musicA = document.querySelector('#music-a');
         const musicB = document.querySelector('#music-b');
         const soundKacha = document.querySelector('#insert-sound');
-        const markerA = document.querySelector('#marker-a');
-        const markerB = document.querySelector('#marker-b');
-        let isUnlocked = false;
 
-        document.body.addEventListener('click', () => {
-            if (isUnlocked) return;
-            [musicA, musicB, soundKacha].forEach(a => {
-                a.muted = true; a.play().then(() => { a.pause(); a.muted = false; });
+        // スマホの「音を出していいですか？」を解除する
+        document.body.addEventListener('touchstart', () => {
+            [musicA, musicB, soundKacha].forEach(audio => {
+                audio.play(); audio.pause(); // 無音で再生・停止させておく
             });
-            isUnlocked = true;
         }, {once: true});
 
-        markerA.addEventListener('targetFound', () => {
-             soundKacha.currentTime = 0; soundKacha.play();
-             setTimeout(() => { musicA.play(); }, 800);
+        document.querySelector('#marker-a').addEventListener('targetFound', () => {
+            soundKacha.currentTime = 0; soundKacha.play();
+            setTimeout(() => { musicA.play(); }, 500);
         });
-        markerB.addEventListener('targetFound', () => {
-             soundKacha.currentTime = 0; soundKacha.play();
-             setTimeout(() => { musicB.play(); }, 800);
+        document.querySelector('#marker-b').addEventListener('targetFound', () => {
+            soundKacha.currentTime = 0; soundKacha.play();
+            setTimeout(() => { musicB.play(); }, 500);
         });
+
+        // 見失ったら音楽を止める設定（これがないと重なり合う原因に）
+        document.querySelector('#marker-a').addEventListener('targetLost', () => { musicA.pause(); });
+        document.querySelector('#marker-b').addEventListener('targetLost', () => { musicB.pause(); });
     </script>
 </body>
 </html>
