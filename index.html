@@ -6,7 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body style="margin: 0; overflow: hidden;">
-    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.0001; filterBeta: 10000;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 100;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
             <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
             <audio id="music-a" src="music/side-a.mp3" preload="auto"></audio>
@@ -27,7 +27,7 @@
     </a-scene>
 
     <script>
-        // --- 1. 文字作成（変更なし） ---
+        // 文字画像作成
         function drawText(text) {
             const canvas = document.createElement('canvas');
             canvas.width = 800; canvas.height = 200;
@@ -51,57 +51,58 @@
         const musicB = document.querySelector('#music-b');
         const soundKacha = document.querySelector('#insert-sound');
         
-        let lastPlayedSide = null; // AかBか、最後に鳴らした方を記憶
-        let isProcessing = false; // 重複再生防止
+        let lastPlayedSide = null;
         let currentMagneticPole = null;
 
-        // --- 2. 磁気センサー（感度をさらに厳しく設定） ---
+        // 磁気センサー (Android用)
         if ('Magnetometer' in window) {
             try {
                 const magSensor = new Magnetometer({ frequency: 10 });
                 magSensor.addEventListener('reading', () => {
-                    // 数値を150まで上げました。磁石をしっかり近づけないと反応しないようにし、誤作動を防ぎます
-                    if (magSensor.z > 150) currentMagneticPole = 'N';
-                    else if (magSensor.z < -150) currentMagneticPole = 'S';
+                    // 数値を100に戻して反応を良くします
+                    if (magSensor.z > 100) currentMagneticPole = 'N';
+                    else if (magSensor.z < -100) currentMagneticPole = 'S';
                     else currentMagneticPole = null;
                 });
                 magSensor.start();
             } catch (e) {}
         }
 
-        // --- 3. 再生ロジック（ここが最大の修正点！） ---
         function handleFound(foundSide) {
-            if (isProcessing) return;
+            // 磁極があればそれを優先、なければ見えた方を採用
+            let finalDecision = foundSide;
+            if (currentMagneticPole === 'N') finalDecision = 'A';
+            if (currentMagneticPole === 'S') finalDecision = 'B';
 
-            // 磁石があれば磁石を優先、なければカメラの認識を使う
-            let finalDecision = currentMagneticPole === 'N' ? 'A' : (currentMagneticPole === 'S' ? 'B' : foundSide);
+            // 同じ面をずっと見ているときは何もしない
+            if (finalDecision === lastPlayedSide) return;
 
-            // 【重要】前回と同じ面なら、何もしない（これでカチャカチャが止まります）
-            if (finalSide === lastPlayedSide) return;
-
-            isProcessing = true;
-            lastPlayedSide = finalSide;
-
-            // 再生処理
+            // 違う面になった瞬間に切り替え
+            lastPlayedSide = finalDecision;
+            
             musicA.pause(); musicB.pause();
+            musicA.currentTime = 0; musicB.currentTime = 0;
+            
             soundKacha.currentTime = 0;
-            soundKacha.play();
+            soundKacha.play().catch(e => console.log("Sound Error"));
 
             setTimeout(() => {
-                const target = (finalSide === 'A') ? musicA : musicB;
-                target.currentTime = 0;
-                target.play().catch(e => {});
-                isProcessing = false;
-            }, 800);
+                const target = (finalDecision === 'A') ? musicA : musicB;
+                target.play().catch(e => console.log("Music Error"));
+            }, 600);
         }
 
         document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
         document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
 
-        // タッチでのアンロック
-        document.body.addEventListener('touchstart', () => {
+        // 強力な再生アンロック（画面のどこを触ってもOK）
+        const unlock = () => {
             [musicA, musicB, soundKacha].forEach(a => { a.play(); a.pause(); });
-        }, {once: true});
+            document.body.removeEventListener('touchstart', unlock);
+            document.body.removeEventListener('click', unlock);
+        };
+        document.body.addEventListener('touchstart', unlock);
+        document.body.addEventListener('click', unlock);
     </script>
 </body>
 </html>
