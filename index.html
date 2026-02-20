@@ -19,17 +19,31 @@
             position: absolute; bottom: 15%; width: 90%; left: 5%; text-align: center;
             color: white; font-size: 28px; font-weight: bold;
             text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, 0px 3px 6px rgba(0,0,0,0.8);
-            display: none; z-index: 10; word-wrap: break-word; line-height: 1.4;
+            display: none; z-index: 10002; word-wrap: break-word; line-height: 1.4;
         }
         #close-hint {
             position: absolute; top: 5%; right: 5%; color: rgba(255,255,255,0.7);
             font-size: 14px; border: 1px solid rgba(255,255,255,0.7);
-            padding: 5px 10px; border-radius: 5px; z-index: 10;
+            padding: 5px 10px; border-radius: 5px; z-index: 10002;
         }
-        /* シミュレーション用ボタン（大きくしました） */
+
+        /* 【新】読み込み中画面のデザイン */
+        #loading-ui {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 10005; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            color: white; font-family: sans-serif;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.3);
+            border-top: 5px solid #e91e63; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         #sim-btn {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 10000; background: #e91e63; color: white; border: none;
+            z-index: 10001; background: #e91e63; color: white; border: none;
             padding: 20px 40px; border-radius: 50px; font-size: 20px; font-weight: bold;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: none;
         }
@@ -37,10 +51,15 @@
 </head>
 <body style="margin: 0; overflow: hidden;">
 
+    <div id="loading-ui">
+        <div class="spinner"></div>
+        <div style="font-size: 20px; font-weight: bold;">読み込み中...</div>
+    </div>
+
     <button id="sim-btn" onclick="startSim()">🎬 仕上がりを確認する</button>
 
     <div id="anime-overlay">
-        <video id="video-a" src="videos/video-a.mp4" playsinline webkit-playsinline></video>
+        <video id="video-a" src="videos/video-a.mp4" playsinline webkit-playsinline style="display:none;"></video>
         <video id="video-b" src="videos/video-b.mp4" playsinline webkit-playsinline style="display:none;"></video>
         <img id="img-a" class="end-card" src="images/end-a.jpg" style="display:none;">
         <img id="img-b" class="end-card" src="images/end-b.jpg" style="display:none;">
@@ -48,7 +67,7 @@
         <div id="close-hint">タップで閉じる</div>
     </div>
 
-    <a-scene id="ar-scene" mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 100;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 100;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
             <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
             <audio id="music-a" src="music/music-a.mp3" preload="auto"></audio>
@@ -64,41 +83,59 @@
     <script>
         const overlay = document.querySelector('#anime-overlay');
         const simBtn = document.querySelector('#sim-btn');
+        const loadingUi = document.querySelector('#loading-ui');
         const vidA = document.querySelector('#video-a'); const vidB = document.querySelector('#video-b');
         const imgA = document.querySelector('#img-a'); const imgB = document.querySelector('#img-b');
         const overlayMsg = document.querySelector('#overlay-msg');
         const soundKacha = document.querySelector('#insert-sound');
 
         const params = new URLSearchParams(window.location.search);
-        const isPreview = params.get('preview') === 'true'; // プレビューモード判定
+        const isPreview = params.get('preview') === 'true';
         const selectedSongId = params.get('song') || 'music-a';
         const customMsg = decodeURIComponent(params.get('msg') || "");
-        if(customMsg) { overlayMsg.textContent = customMsg; overlayMsg.style.display = 'block'; }
-
-        // プレビューモードならボタンを表示
-        if (isPreview) {
-            simBtn.style.display = 'block';
-        }
+        
+        if(customMsg) { overlayMsg.textContent = customMsg; }
+        if (isPreview) { simBtn.style.display = 'block'; }
 
         let activeSide = null;
 
-        function startSim() {
+        function unlockAll() {
+            ['music-a','music-b','music-c','music-d','insert-sound'].forEach(id => {
+                const a = document.getElementById(id);
+                if(a) { a.play(); a.pause(); }
+            });
+            vidA.play(); vidA.pause(); vidB.play(); vidB.pause();
+        }
+
+        async function startSim() {
+            unlockAll();
             simBtn.style.display = 'none';
-            handleFound('A'); // A面としてシミュレーション開始
+            handleFound('A');
         }
 
         function closeAll() {
             overlay.style.display = 'none';
+            loadingUi.style.display = 'none';
             if (isPreview) simBtn.style.display = 'block';
             vidA.pause(); vidA.currentTime = 0; vidA.style.display = 'none';
             vidB.pause(); vidB.currentTime = 0; vidB.style.display = 'none';
             imgA.style.display = 'none'; imgB.style.display = 'none';
+            overlayMsg.style.display = 'none';
             ['music-a','music-b','music-c','music-d'].forEach(id => {
                 const m = document.getElementById(id);
                 if(m) { m.pause(); m.currentTime = 0; }
             });
             activeSide = null;
         }
+
+        // 動画が再生開始されたら読み込み中を消す
+        const onPlaying = () => {
+            loadingUi.style.display = 'none';
+            overlay.style.display = 'flex';
+            overlayMsg.style.display = 'block';
+        };
+        vidA.addEventListener('playing', onPlaying);
+        vidB.addEventListener('playing', onPlaying);
 
         vidA.addEventListener('ended', () => { vidA.style.display='none'; imgA.style.display='block'; });
         vidB.addEventListener('ended', () => { vidB.style.display='none'; imgB.style.display='block'; });
@@ -107,13 +144,20 @@
         function handleFound(side) {
             if (activeSide !== null) return;
             activeSide = side;
+
+            // 読み込み中を表示
+            loadingUi.style.display = 'flex';
+
             soundKacha.currentTime = 0;
             soundKacha.play().catch(e=>{});
+
             setTimeout(() => {
-                overlay.style.display = 'flex';
                 const v = (side === 'A') ? vidA : vidB;
                 v.style.display = 'block';
-                v.play().catch(e=>{});
+                v.play().catch(e=>{
+                    loadingUi.style.display = 'none';
+                    alert("動画の再生に失敗しました。");
+                });
                 const targetMusic = document.getElementById(selectedSongId);
                 if(targetMusic) targetMusic.play().catch(e=>{});
             }, 600);
@@ -122,16 +166,7 @@
         document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
         document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
 
-        // 音声アンロック
-        const unlock = () => {
-            ['music-a','music-b','music-c','music-d', 'insert-sound'].forEach(id => {
-                const a = document.getElementById(id);
-                if(a) { a.play(); a.pause(); }
-            });
-            vidA.play(); vidA.pause();
-            document.body.removeEventListener('click', unlock);
-        };
-        document.body.addEventListener('click', unlock, {once:true});
+        document.body.addEventListener('click', unlockAll, {once:true});
     </script>
 </body>
 </html>
