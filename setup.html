@@ -10,7 +10,6 @@
         h1 { color: #e91e63; font-size: 24px; }
         label { font-size: 18px; font-weight: bold; display: block; margin: 20px 0 10px; }
         
-        /* 曲選択ボタンのスタイル */
         .song-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .song-btn {
             padding: 15px 10px; border: 2px solid #ddd; border-radius: 10px;
@@ -20,7 +19,9 @@
         
         textarea { width: 95%; height: 100px; padding: 10px; font-size: 18px; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 20px; }
         
-        .main-btn { background-color: #e91e63; color: white; font-size: 20px; font-weight: bold; padding: 15px; border: none; border-radius: 50px; width: 100%; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .main-btn { background-color: #e91e63; color: white; font-size: 20px; font-weight: bold; padding: 15px; border: none; border-radius: 50px; width: 100%; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); margin-bottom: 10px; }
+        /* プレビューボタンのデザイン */
+        .preview-btn { background-color: #4CAF50; color: white; font-size: 18px; font-weight: bold; padding: 12px; border: none; border-radius: 50px; width: 100%; cursor: pointer; margin-bottom: 20px; }
         
         #result-area { margin-top: 30px; display: none; border-top: 2px dashed #ddd; padding-top: 20px; }
         #generated-url { font-size: 12px; word-break: break-all; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px; }
@@ -34,7 +35,7 @@
         
         <label>🎵 曲を選んでね（4曲）</label>
         <div class="song-selector">
-            <button class="song-btn" onclick="selectSong('music-a', this)">癒やしの<br>オルゴール</button>
+            <button class="song-btn active" onclick="selectSong('music-a', this)">癒やしの<br>オルゴール</button>
             <button class="song-btn" onclick="selectSong('music-b', this)">元気な<br>マーチ</button>
             <button class="song-btn" onclick="selectSong('music-c', this)">誕生日の<br>曲</button>
             <button class="song-btn" onclick="selectSong('music-d', this)">おめでとう<br>の曲</button>
@@ -42,6 +43,8 @@
 
         <label>💬 メッセージを入れてね</label>
         <textarea id="message" placeholder="ここに入力してね"></textarea>
+
+        <button class="preview-btn" onclick="previewNow()">👁️ まずは自分で確認する</button>
 
         <button class="main-btn" onclick="generateLink()">✨ リンクを作成する</button>
 
@@ -53,13 +56,26 @@
     </div>
 
     <script>
-        let selectedSong = 'music-a'; // デフォルト
+        let selectedSong = 'music-a';
 
         function selectSong(songId, element) {
             selectedSong = songId;
-            // ボタンの見た目を切り替え
             document.querySelectorAll('.song-btn').forEach(btn => btn.classList.remove('active'));
             element.classList.add('active');
+        }
+
+        // --- プレビュー機能（自分ですぐ確認） ---
+        function previewNow() {
+            const msg = document.getElementById('message').value;
+            if(!msg) { alert("メッセージを入れてから確認してね！"); return; }
+            
+            const encodedMsg = encodeURIComponent(msg);
+            const baseUrl = window.location.href.replace('setup.html', '');
+            const finalUrl = `${baseUrl}index.html?msg=${encodedMsg}&song=${selectedSong}`;
+            
+            // 新しいタブ（ウィンドウ）で、カメラなしのシミュレーションではなく、本番のARページを開く
+            // お客さんはここで「あ、こうなるんだ！」と確認できます。
+            window.open(finalUrl, '_blank');
         }
 
         function generateLink() {
@@ -68,8 +84,6 @@
             
             const encodedMsg = encodeURIComponent(msg);
             const baseUrl = window.location.href.replace('setup.html', '');
-            
-            // URLに「曲のID」と「メッセージ」を詰め込む
             const finalUrl = `${baseUrl}index.html?msg=${encodedMsg}&song=${selectedSong}`;
             
             document.getElementById('generated-url').textContent = finalUrl;
