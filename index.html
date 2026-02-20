@@ -16,26 +16,18 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0" id="marker-a">
-            <a-box id="box-a" position="0 0 0.4" width="1" height="0.6" depth="0.02" material="color: #FF4081; opacity: 0.8"
-                   animation="property: position; from: 0 0 0.4; to: 0 0 0; dur: 600; easing: easeOutCubic; startEvents: showAnim">
-            </a-box>
-            <a-plane id="msg-a" position="0 0.3 0.03" width="0.8" height="0.2" color="white"
-                   animation="property: position; from: 0 0 0.03; to: 0 0.6 0.03; dur: 800; easing: easeOutBack; startEvents: showAnim">
-            </a-plane>
+            <a-box id="box-a" position="0 0 0.4" width="1" height="0.6" depth="0.02" material="color: #FF4081; opacity: 0.8"></a-box>
+            <a-plane id="msg-a" position="0 0 0.03" width="0.8" height="0.2" color="white"></a-plane>
         </a-entity>
 
         <a-entity mindar-image-target="targetIndex: 1" id="marker-b">
-            <a-box id="box-b" position="0 0 0.4" width="1" height="0.6" depth="0.02" material="color: #2196F3; opacity: 0.8"
-                   animation="property: position; from: 0 0 0.4; to: 0 0 0; dur: 600; easing: easeOutCubic; startEvents: showAnim">
-            </a-box>
-            <a-plane id="msg-b" position="0 0.3 0.03" width="0.8" height="0.2" color="white"
-                   animation="property: position; from: 0 0 0.03; to: 0 0.6 0.03; dur: 800; easing: easeOutBack; startEvents: showAnim">
-            </a-plane>
+            <a-box id="box-b" position="0 0 0.4" width="1" height="0.6" depth="0.02" material="color: #2196F3; opacity: 0.8"></a-box>
+            <a-plane id="msg-b" position="0 0 0.03" width="0.8" height="0.2" color="white"></a-plane>
         </a-entity>
     </a-scene>
 
     <script>
-        // 文字画像作成
+        // 文字画像作成（変更なし）
         function drawText(text) {
             const canvas = document.createElement('canvas');
             canvas.width = 800; canvas.height = 200;
@@ -59,7 +51,8 @@
         const musicB = document.querySelector('#music-b');
         const soundKacha = document.querySelector('#insert-sound');
         
-        let lastPlayedSide = null;
+        let activeSide = null;      // 今鳴っている面
+        let playTimer = null;       // 音楽再生の「予約」を入れる箱
         let currentMagneticPole = null;
 
         // 磁気センサー
@@ -75,27 +68,47 @@
             } catch (e) {}
         }
 
-        function handleFound(foundSide) {
-            let finalSide = foundSide;
+        // --- 同時再生とアニメーション停止を防ぐ心臓部 ---
+        function handleFound(detectedSide) {
+            let finalSide = detectedSide;
             if (currentMagneticPole === 'N') finalSide = 'A';
             if (currentMagneticPole === 'S') finalSide = 'B';
 
-            if (finalSide === lastPlayedSide) return;
-            lastPlayedSide = finalSide;
+            // すでに同じ面が実行中なら何もしない
+            if (activeSide === finalSide) return;
+            activeSide = finalSide;
 
-            // アニメーション開始の合図を送る
+            // 1. 【超重要】前の曲の「再生予約」が残っていたらキャンセルして消し去る！
+            if (playTimer !== null) {
+                clearTimeout(playTimer);
+            }
+
+            // 2. 今鳴っている音を全て強制停止
+            musicA.pause(); musicA.currentTime = 0;
+            musicB.pause(); musicB.currentTime = 0;
+
+            // 3. アニメーションの強制リセット＆再実行
             const box = document.querySelector('#box-' + finalSide.toLowerCase());
             const msg = document.querySelector('#msg-' + finalSide.toLowerCase());
-            box.emit('showAnim');
-            msg.emit('showAnim');
 
-            musicA.pause(); musicB.pause();
-            soundKacha.currentTime = 0;
-            soundKacha.play();
+            // 一度アニメーションの設定を剥がす
+            box.removeAttribute('animation');
+            msg.removeAttribute('animation');
 
+            // ほんの一瞬（10ミリ秒）待ってから、新しいアニメーションを注入する（これで必ず動く）
             setTimeout(() => {
-                const target = (finalSide === 'A') ? musicA : musicB;
-                target.play().catch(e => {});
+                box.setAttribute('animation', 'property: position; from: 0 0 0.4; to: 0 0 0; dur: 600; easing: easeOutCubic');
+                msg.setAttribute('animation', 'property: position; from: 0 0 0.03; to: 0 0.6 0.03; dur: 800; easing: easeOutBack');
+            }, 10);
+
+            // 4. カチャ音を鳴らす
+            soundKacha.currentTime = 0;
+            soundKacha.play().catch(e=>{});
+
+            // 5. 新しく曲の「再生予約」を入れる
+            playTimer = setTimeout(() => {
+                const targetMusic = (finalSide === 'A') ? musicA : musicB;
+                targetMusic.play().catch(e=>{});
             }, 600);
         }
 
