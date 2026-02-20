@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>想いマグ - メッセージ作成</title>
+    <style>
+        /* お年寄りにも優しい、大きくて見やすいデザイン */
+        body {
+            font-family: sans-serif; background-color: #f0f8ff;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 20px; color: #333;
+        }
+        h1 { margin-bottom: 20px; color: #e91e63; }
+        .container {
+            background: white; padding: 30px; border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%; max-width: 500px; text-align: center;
+        }
+        label { font-size: 20px; font-weight: bold; display: block; margin-bottom: 15px; }
+        /* 大きな文字入力欄 */
+        textarea {
+            width: 90%; height: 120px; padding: 15px; font-size: 22px;
+            border: 2px solid #ddd; border-radius: 10px; margin-bottom: 20px;
+            resize: none; /* サイズ変更を禁止 */
+        }
+        /* 押しやすい大きなボタン */
+        button {
+            background-color: #e91e63; color: white; font-size: 22px;
+            font-weight: bold; padding: 15px 30px; border: none;
+            border-radius: 50px; cursor: pointer; width: 100%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        button:active { transform: translateY(2px); } /* 押した感じを出す */
+        
+        /* 結果表示エリア */
+        #result-area {
+            margin-top: 30px; display: none; /* 最初は隠す */
+            border-top: 3px dotted #ddd; padding-top: 30px;
+        }
+        .result-title { font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+        #generated-url {
+            font-size: 14px; word-break: break-all; padding: 15px;
+            background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px;
+            margin-bottom: 15px; user-select: all; /* タップで全選択 */
+        }
+        .copy-btn { background-color: #2196F3; }
+    </style>
+</head>
+<body>
+
+    <h1>💌 想いマグを作成</h1>
+    <div class="container">
+        <label for="message">👇ここに贈る言葉を入れてね</label>
+        <textarea id="message" placeholder="（例）お誕生日おめでとう！いつまでも元気でいてね。"></textarea>
+        <button onclick="generateLink()">✨ プレゼント用URLを作る</button>
+
+        <div id="result-area">
+            <p class="result-title">👇このURLを家族に送ってね！</p>
+            <div id="generated-url"></div>
+            <button class="copy-btn" onclick="copyToClipboard()">📋 URLをコピーする</button>
+        </div>
+    </div>
+
+    <script>
+        // URLを作成する魔法のボタン
+        function generateLink() {
+            const msgInput = document.getElementById('message').value;
+            if (!msgInput) {
+                alert("メッセージが空っぽだよ！何か入力してね。");
+                return;
+            }
+
+            // 入力された文字を、URLで使える特殊な形式に変換（エンコード）
+            const encodedMsg = encodeURIComponent(msgInput);
+            
+            // 今いる場所のURLを元に、ARページのURLを組み立てる
+            // 例: https://あなたのID.github.io/omoimagu/ + index.html?msg=...
+            const baseUrl = window.location.href.replace('setup.html', '');
+            const finalUrl = baseUrl + 'index.html?msg=' + encodedMsg;
+
+            // 結果を表示する
+            document.getElementById('generated-url').textContent = finalUrl;
+            document.getElementById('result-area').style.display = 'block';
+            
+            // 作成ボタンの下へ自動スクロール
+            document.getElementById('result-area').scrollIntoView({behavior: "smooth"});
+        }
+
+        // URLをクリップボードにコピーするボタン
+        function copyToClipboard() {
+            const urlText = document.getElementById('generated-url').textContent;
+            // 最新のコピー機能を使う
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(urlText).then(() => {
+                    alert("コピーしました！\nLINEやメールの画面で「貼り付け」て送ってね。");
+                }, () => {
+                    alert("ごめんね、コピーできなかったみたい。\n上のURLの文字を長押ししてコピーしてね。");
+                });
+            } else {
+                // 古いスマホ用のコピー方法（念のため）
+                const textArea = document.createElement("textarea");
+                textArea.value = urlText;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textArea);
+                alert("コピーしました！\nLINEやメールに貼り付けてね。");
+            }
+        }
+    </script>
+
+</body>
+</html>
