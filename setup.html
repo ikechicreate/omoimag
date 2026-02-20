@@ -67,7 +67,9 @@
             if(!msg) { alert("メッセージを入れてから確認してね！"); return; }
             const encodedMsg = encodeURIComponent(msg);
             const baseUrl = window.location.href.replace('setup.html', '');
-            const finalUrl = `${baseUrl}index.html?msg=${encodedMsg}&song=${selectedSong}`;
+            
+            // 語尾に &preview=true を付け加えます
+            const finalUrl = `${baseUrl}index.html?msg=${encodedMsg}&song=${selectedSong}&preview=true`;
             window.open(finalUrl, '_blank');
         }
 
