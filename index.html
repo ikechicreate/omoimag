@@ -6,38 +6,23 @@
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
-        /* 全画面表示エリアのデザイン */
+        /* テレビアニメのように画面いっぱいに表示する設定 */
         #anime-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: black; z-index: 9999; display: none;
             justify-content: center; align-items: center;
         }
-        /* 動画と静止画の共通デザイン */
         #anime-overlay video, #anime-overlay img.end-card {
             width: 100%; height: 100%; object-fit: cover;
             position: absolute; top: 0; left: 0;
         }
-        /* メッセージ表示のデザイン調整 */
+        /* お年寄りでも読みやすいフチ取りメッセージ */
         #overlay-msg {
-            position: absolute;
-            bottom: 15%; /* 下からの位置 */
-            width: 90%; /* 横幅いっぱい */
-            left: 5%; /* 中央寄せのための調整 */
-            text-align: center; /* 文字を真ん中揃え */
-            color: white; /* 白文字 */
-            font-size: 28px; /* 文字を少し大きく */
-            font-weight: bold; /* 太文字 */
-            /* どんな背景でも読めるように、黒いフチ取りを強力につける */
-            text-shadow: 
-                2px 2px 0 #000, -2px -2px 0 #000,
-                -2px 2px 0 #000, 2px -2px 0 #000,
-                0px 3px 0 #000, 0px -3px 0 #000;
-            display: none; z-index: 10;
-            /* 長いメッセージでも折り返して表示 */
-            word-wrap: break-word;
-            line-height: 1.4;
+            position: absolute; bottom: 15%; width: 90%; left: 5%; text-align: center;
+            color: white; font-size: 28px; font-weight: bold;
+            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, 0px 3px 6px rgba(0,0,0,0.8);
+            display: none; z-index: 10; word-wrap: break-word; line-height: 1.4;
         }
-        /* 案内ヒント */
         #close-hint {
             position: absolute; top: 5%; right: 5%; color: rgba(255,255,255,0.7);
             font-size: 14px; border: 1px solid rgba(255,255,255,0.7);
@@ -48,12 +33,10 @@
 <body style="margin: 0; overflow: hidden;">
 
     <div id="anime-overlay">
-        <video id="video-a" src="videos/video-a.mp4" playsinline webkit-playsinline style="display:none;"></video>
+        <video id="video-a" src="videos/video-a.mp4" playsinline webkit-playsinline></video>
         <video id="video-b" src="videos/video-b.mp4" playsinline webkit-playsinline style="display:none;"></video>
-        
         <img id="img-a" class="end-card" src="images/end-a.jpg" style="display:none;">
         <img id="img-b" class="end-card" src="images/end-b.jpg" style="display:none;">
-
         <div id="overlay-msg"></div>
         <div id="close-hint">タップで閉じる</div>
     </div>
@@ -61,8 +44,10 @@
     <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 100;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
             <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
-            <audio id="music-a" src="music/side-a.mp3" preload="auto"></audio>
-            <audio id="music-b" src="music/side-b.mp3" preload="auto"></audio>
+            <audio id="music-a" src="music/music-a.mp3" preload="auto"></audio>
+            <audio id="music-b" src="music/music-b.mp3" preload="auto"></audio>
+            <audio id="music-c" src="music/music-c.mp3" preload="auto"></audio>
+            <audio id="music-d" src="music/music-d.mp3" preload="auto"></audio>
         </a-assets>
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
         <a-entity mindar-image-target="targetIndex: 0" id="marker-a"></a-entity>
@@ -74,19 +59,19 @@
         const vidA = document.querySelector('#video-a'); const vidB = document.querySelector('#video-b');
         const imgA = document.querySelector('#img-a'); const imgB = document.querySelector('#img-b');
         const overlayMsg = document.querySelector('#overlay-msg');
-        const closeHint = document.querySelector('#close-hint');
-        const musicA = document.querySelector('#music-a'); const musicB = document.querySelector('#music-b');
         const soundKacha = document.querySelector('#insert-sound');
+
+        // URLから設定を読み込む
+        const params = new URLSearchParams(window.location.search);
+        const selectedSongId = params.get('song') || 'music-a';
+        const customMsg = decodeURIComponent(params.get('msg') || "");
+        
+        if(customMsg) { overlayMsg.textContent = customMsg; overlayMsg.style.display = 'block'; }
 
         let activeSide = null;
         let currentMagneticPole = null;
 
-        // URLメッセージ取得
-        const params = new URLSearchParams(window.location.search);
-        const customMsg = decodeURIComponent(params.get('msg') || "");
-        if(customMsg) { overlayMsg.textContent = customMsg; overlayMsg.style.display = 'block'; }
-
-        // 磁気センサー
+        // 磁気センサー判定（ARディスプレイ＋複合センサー判定の要です）
         if ('Magnetometer' in window) {
             try {
                 const magSensor = new Magnetometer({ frequency: 10 });
@@ -99,51 +84,29 @@
             } catch (e) {}
         }
 
-        // --- 完全に閉じてカメラに戻る関数 ---
         function closeAll() {
             overlay.style.display = 'none';
-            // 全てをリセット＆非表示
             vidA.pause(); vidA.currentTime = 0; vidA.style.display = 'none';
             vidB.pause(); vidB.currentTime = 0; vidB.style.display = 'none';
             imgA.style.display = 'none'; imgB.style.display = 'none';
-            musicA.pause(); musicA.currentTime = 0;
-            musicB.pause(); musicB.currentTime = 0;
-            activeSide = null; // 次の認識を許可
-            closeHint.textContent = "タップで閉じる"; // ヒントを元に戻す
+            ['music-a','music-b','music-c','music-d'].forEach(id => {
+                const m = document.getElementById(id);
+                if(m) { m.pause(); m.currentTime = 0; }
+            });
+            activeSide = null;
         }
 
-        // --- 動画終了時に静止画に切り替える関数 ---
-        function switchToImage(side) {
-            // 動画と音楽を止めて隠す
-            vidA.pause(); vidA.style.display = 'none';
-            vidB.pause(); vidB.style.display = 'none';
-            musicA.pause(); musicB.pause();
-
-            // 対応する静止画を表示
-            if (side === 'A') imgA.style.display = 'block';
-            else imgB.style.display = 'block';
-
-            // ヒントの文字を変更（分かりやすくする）
-            closeHint.textContent = "タップしてカメラに戻る";
-        }
-
-        // 動画が最後まで終わったら「静止画切り替え関数」を呼ぶ
-        vidA.addEventListener('ended', () => switchToImage('A'));
-        vidB.addEventListener('ended', () => switchToImage('B'));
-
-        // 画面タップで「完全に閉じる関数」を呼ぶ
+        vidA.addEventListener('ended', () => { vidA.style.display='none'; imgA.style.display='block'; });
+        vidB.addEventListener('ended', () => { vidB.style.display='none'; imgB.style.display='block'; });
         overlay.addEventListener('click', closeAll);
 
-        // --- 再生開始ロジック ---
         function handleFound(detectedSide) {
             let finalSide = detectedSide;
+            // 磁気センサーがハッキリしていれば優先する
             if (currentMagneticPole === 'N') finalSide = 'A';
             if (currentMagneticPole === 'S') finalSide = 'B';
 
-            // すでに再生中または終了画像表示中なら無視
-            if (activeSide === finalSide) return;
-            if (activeSide !== null) closeAll(); // 違う面ならリセット
-
+            if (activeSide !== null) return;
             activeSide = finalSide;
 
             soundKacha.currentTime = 0;
@@ -151,21 +114,26 @@
 
             setTimeout(() => {
                 overlay.style.display = 'flex';
-                const targetVid = (finalSide === 'A') ? vidA : vidB;
-                targetVid.style.display = 'block';
-                targetVid.play().catch(e => {});
-                const targetMusic = (finalSide === 'A') ? musicA : musicB;
-                targetMusic.play().catch(e=>{});
+                const v = (finalSide === 'A') ? vidA : vidB;
+                v.style.display = 'block';
+                v.play().catch(e=>{});
+                
+                // setup.htmlで選ばれた曲を再生
+                const targetMusic = document.getElementById(selectedSongId);
+                if(targetMusic) targetMusic.play().catch(e=>{});
             }, 600);
         }
 
         document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
         document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
 
-        // 最初のタップでロック解除
+        // 最初のタップで全音声をアンロック
         const unlock = () => {
-            [musicA, musicB, soundKacha].forEach(a => { a.play(); a.pause(); });
-            [vidA, vidB].forEach(v => { v.play(); v.pause(); });
+            ['music-a','music-b','music-c','music-d', 'insert-sound'].forEach(id => {
+                const a = document.getElementById(id);
+                if(a) { a.play(); a.pause(); }
+            });
+            vidA.play(); vidA.pause(); vidB.play(); vidB.pause();
             document.body.removeEventListener('click', unlock);
             document.body.removeEventListener('touchstart', unlock);
         };
