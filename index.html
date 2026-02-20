@@ -6,7 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body style="margin: 0; overflow: hidden;">
-    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 1000;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.0001; filterBeta: 10000;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         <a-assets>
             <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
             <audio id="music-a" src="music/side-a.mp3" preload="auto"></audio>
@@ -27,16 +27,14 @@
     </a-scene>
 
     <script>
+        // --- 1. 文字作成（変更なし） ---
         function drawText(text) {
             const canvas = document.createElement('canvas');
             canvas.width = 800; canvas.height = 200;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.font = "bold 60px sans-serif";
-            ctx.fillStyle = "#333333";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
+            ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = "bold 60px sans-serif"; ctx.fillStyle = "#333333";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillText(text, 400, 100);
             return canvas.toDataURL();
         }
@@ -52,26 +50,58 @@
         const musicA = document.querySelector('#music-a');
         const musicB = document.querySelector('#music-b');
         const soundKacha = document.querySelector('#insert-sound');
+        
+        let lastPlayedSide = null; // AかBか、最後に鳴らした方を記憶
+        let isProcessing = false; // 重複再生防止
+        let currentMagneticPole = null;
 
-        // スマホの「音を出していいですか？」を解除する
+        // --- 2. 磁気センサー（感度をさらに厳しく設定） ---
+        if ('Magnetometer' in window) {
+            try {
+                const magSensor = new Magnetometer({ frequency: 10 });
+                magSensor.addEventListener('reading', () => {
+                    // 数値を150まで上げました。磁石をしっかり近づけないと反応しないようにし、誤作動を防ぎます
+                    if (magSensor.z > 150) currentMagneticPole = 'N';
+                    else if (magSensor.z < -150) currentMagneticPole = 'S';
+                    else currentMagneticPole = null;
+                });
+                magSensor.start();
+            } catch (e) {}
+        }
+
+        // --- 3. 再生ロジック（ここが最大の修正点！） ---
+        function handleFound(foundSide) {
+            if (isProcessing) return;
+
+            // 磁石があれば磁石を優先、なければカメラの認識を使う
+            let finalDecision = currentMagneticPole === 'N' ? 'A' : (currentMagneticPole === 'S' ? 'B' : foundSide);
+
+            // 【重要】前回と同じ面なら、何もしない（これでカチャカチャが止まります）
+            if (finalSide === lastPlayedSide) return;
+
+            isProcessing = true;
+            lastPlayedSide = finalSide;
+
+            // 再生処理
+            musicA.pause(); musicB.pause();
+            soundKacha.currentTime = 0;
+            soundKacha.play();
+
+            setTimeout(() => {
+                const target = (finalSide === 'A') ? musicA : musicB;
+                target.currentTime = 0;
+                target.play().catch(e => {});
+                isProcessing = false;
+            }, 800);
+        }
+
+        document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
+        document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
+
+        // タッチでのアンロック
         document.body.addEventListener('touchstart', () => {
-            [musicA, musicB, soundKacha].forEach(audio => {
-                audio.play(); audio.pause(); // 無音で再生・停止させておく
-            });
+            [musicA, musicB, soundKacha].forEach(a => { a.play(); a.pause(); });
         }, {once: true});
-
-        document.querySelector('#marker-a').addEventListener('targetFound', () => {
-            soundKacha.currentTime = 0; soundKacha.play();
-            setTimeout(() => { musicA.play(); }, 500);
-        });
-        document.querySelector('#marker-b').addEventListener('targetFound', () => {
-            soundKacha.currentTime = 0; soundKacha.play();
-            setTimeout(() => { musicB.play(); }, 500);
-        });
-
-        // 見失ったら音楽を止める設定（これがないと重なり合う原因に）
-        document.querySelector('#marker-a').addEventListener('targetLost', () => { musicA.pause(); });
-        document.querySelector('#marker-b').addEventListener('targetLost', () => { musicB.pause(); });
     </script>
 </body>
 </html>
