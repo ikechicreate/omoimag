@@ -1,127 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>想いマグ - メッセージ作成</title>
     <style>
-        #anime-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: black; z-index: 9999; display: none;
-            justify-content: center; align-items: center;
+        body { font-family: sans-serif; background-color: #f0f8ff; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; }
+        h1 { color: #e91e63; font-size: 24px; }
+        label { font-size: 18px; font-weight: bold; display: block; margin: 20px 0 10px; }
+        
+        .song-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .song-btn {
+            padding: 15px 10px; border: 2px solid #ddd; border-radius: 10px;
+            background: #fff; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s;
         }
-        #anime-overlay video, #anime-overlay img.end-card {
-            width: 100%; height: 100%; object-fit: cover;
-            position: absolute; top: 0; left: 0;
-        }
-        #overlay-msg {
-            position: absolute; bottom: 15%; width: 90%; left: 5%; text-align: center;
-            color: white; font-size: 28px; font-weight: bold;
-            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, 0px 3px 6px rgba(0,0,0,0.8);
-            display: none; z-index: 10; word-wrap: break-word; line-height: 1.4;
-        }
-        #close-hint {
-            position: absolute; top: 5%; right: 5%; color: rgba(255,255,255,0.7);
-            font-size: 14px; border: 1px solid rgba(255,255,255,0.7);
-            padding: 5px 10px; border-radius: 5px; z-index: 10;
-        }
-        /* 【新】テスト再生用の隠しボタン */
-        #test-play-btn {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 1000; background: rgba(233, 30, 99, 0.7); color: white;
-            border: none; padding: 10px 20px; border-radius: 30px; font-weight: bold;
-        }
+        .song-btn.active { background: #e91e63; color: white; border-color: #e91e63; }
+        
+        textarea { width: 95%; height: 100px; padding: 10px; font-size: 18px; border: 2px solid #ddd; border-radius: 10px; margin-bottom: 20px; }
+        
+        .main-btn { background-color: #e91e63; color: white; font-size: 20px; font-weight: bold; padding: 15px; border: none; border-radius: 50px; width: 100%; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2); margin-bottom: 10px; }
+        .preview-btn { background-color: #4CAF50; color: white; font-size: 18px; font-weight: bold; padding: 12px; border: none; border-radius: 50px; width: 100%; cursor: pointer; margin-bottom: 20px; }
+        
+        #result-area { margin-top: 30px; display: none; border-top: 2px dashed #ddd; padding-top: 20px; }
+        #generated-url { font-size: 12px; word-break: break-all; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px; }
+        .copy-btn { background-color: #2196F3; color: white; padding: 10px; border: none; border-radius: 5px; width: 100%; font-weight: bold; }
     </style>
 </head>
-<body style="margin: 0; overflow: hidden;">
+<body>
 
-    <button id="test-play-btn" onclick="handleFound('A')">👀 仕上がりを確認する</button>
+    <h1>💌 想いマグを作成</h1>
+    <div class="container">
+        
+        <label>🎵 曲を選んでね（4曲）</label>
+        <div class="song-selector">
+            <button class="song-btn active" onclick="selectSong('music-a', this)">癒やしの<br>オルゴール</button>
+            <button class="song-btn" onclick="selectSong('music-b', this)">元気な<br>マーチ</button>
+            <button class="song-btn" onclick="selectSong('music-c', this)">誕生日の<br>曲</button>
+            <button class="song-btn" onclick="selectSong('music-d', this)">おめでとう<br>の曲</button>
+        </div>
 
-    <div id="anime-overlay">
-        <video id="video-a" src="videos/video-a.mp4" playsinline webkit-playsinline></video>
-        <video id="video-b" src="videos/video-b.mp4" playsinline webkit-playsinline style="display:none;"></video>
-        <img id="img-a" class="end-card" src="images/end-a.jpg" style="display:none;">
-        <img id="img-b" class="end-card" src="images/end-b.jpg" style="display:none;">
-        <div id="overlay-msg"></div>
-        <div id="close-hint">タップで閉じる</div>
+        <label>💬 メッセージを入れてね</label>
+        <textarea id="message" placeholder="ここに入力してね"></textarea>
+
+        <button class="preview-btn" onclick="previewNow()">👁️ まずは自分で確認する</button>
+        <button class="main-btn" onclick="generateLink()">✨ リンクを作成する</button>
+
+        <div id="result-area">
+            <p>👇 これを家族に送ってね</p>
+            <div id="generated-url"></div>
+            <button class="copy-btn" onclick="copyUrl()">コピーする</button>
+        </div>
     </div>
 
-    <a-scene mindar-image="imageTargetSrc: targets/targets.mind; filterMinCF:0.001; filterBeta: 100;" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-        <a-assets>
-            <audio id="insert-sound" src="sounds/kacha.mp3" preload="auto"></audio>
-            <audio id="music-a" src="music/music-a.mp3" preload="auto"></audio>
-            <audio id="music-b" src="music/music-b.mp3" preload="auto"></audio>
-            <audio id="music-c" src="music/music-c.mp3" preload="auto"></audio>
-            <audio id="music-d" src="music/music-d.mp3" preload="auto"></audio>
-        </a-assets>
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-        <a-entity mindar-image-target="targetIndex: 0" id="marker-a"></a-entity>
-        <a-entity mindar-image-target="targetIndex: 1" id="marker-b"></a-entity>
-    </a-scene>
-
     <script>
-        const overlay = document.querySelector('#anime-overlay');
-        const testBtn = document.querySelector('#test-play-btn');
-        const vidA = document.querySelector('#video-a'); const vidB = document.querySelector('#video-b');
-        const imgA = document.querySelector('#img-a'); const imgB = document.querySelector('#img-b');
-        const overlayMsg = document.querySelector('#overlay-msg');
-        const soundKacha = document.querySelector('#insert-sound');
+        let selectedSong = 'music-a';
 
-        const params = new URLSearchParams(window.location.search);
-        const selectedSongId = params.get('song') || 'music-a';
-        const customMsg = decodeURIComponent(params.get('msg') || "");
-        if(customMsg) { overlayMsg.textContent = customMsg; overlayMsg.style.display = 'block'; }
-
-        let activeSide = null;
-
-        function closeAll() {
-            overlay.style.display = 'none';
-            testBtn.style.display = 'block'; // ボタンを再表示
-            vidA.pause(); vidA.currentTime = 0; vidA.style.display = 'none';
-            vidB.pause(); vidB.currentTime = 0; vidB.style.display = 'none';
-            imgA.style.display = 'none'; imgB.style.display = 'none';
-            ['music-a','music-b','music-c','music-d'].forEach(id => {
-                const m = document.getElementById(id);
-                if(m) { m.pause(); m.currentTime = 0; }
-            });
-            activeSide = null;
+        function selectSong(songId, element) {
+            selectedSong = songId;
+            document.querySelectorAll('.song-btn').forEach(btn => btn.classList.remove('active'));
+            element.classList.add('active');
         }
 
-        vidA.addEventListener('ended', () => { vidA.style.display='none'; imgA.style.display='block'; });
-        vidB.addEventListener('ended', () => { vidB.style.display='none'; imgB.style.display='block'; });
-        overlay.addEventListener('click', closeAll);
-
-        function handleFound(side) {
-            if (activeSide !== null) return;
-            activeSide = side;
-            testBtn.style.display = 'none'; // 再生中はボタンを隠す
-
-            soundKacha.currentTime = 0;
-            soundKacha.play().catch(e=>{});
-
-            setTimeout(() => {
-                overlay.style.display = 'flex';
-                const v = (side === 'A') ? vidA : vidB;
-                v.style.display = 'block';
-                v.play().catch(e=>{});
-                const targetMusic = document.getElementById(selectedSongId);
-                if(targetMusic) targetMusic.play().catch(e=>{});
-            }, 600);
+        function previewNow() {
+            const msg = document.getElementById('message').value;
+            if(!msg) { alert("メッセージを入れてから確認してね！"); return; }
+            const encodedMsg = encodeURIComponent(msg);
+            const baseUrl = window.location.href.replace('setup.html', '');
+            const finalUrl = `${baseUrl}index.html?msg=${encodedMsg}&song=${selectedSong}`;
+            window.open(finalUrl, '_blank');
         }
 
-        document.querySelector('#marker-a').addEventListener('targetFound', () => handleFound('A'));
-        document.querySelector('#marker-b').addEventListener('targetFound', () => handleFound('B'));
+        function generateLink() {
+            const msg = document.getElementById('message').value;
+            if(!msg) { alert("メッセージを入れてね！"); return; }
+            const encodedMsg = encodeURIComponent(msg);
+            const baseUrl = window.location.href.replace('setup.html', '');
+            const finalUrl = `${baseUrl}index.html?msg=${encodedMsg}&song=${selectedSong}`;
+            document.getElementById('generated-url').textContent = finalUrl;
+            document.getElementById('result-area').style.display = 'block';
+        }
 
-        const unlock = () => {
-            ['music-a','music-b','music-c','music-d', 'insert-sound'].forEach(id => {
-                const a = document.getElementById(id);
-                if(a) { a.play(); a.pause(); }
-            });
-            vidA.play(); vidA.pause(); vidB.play(); vidB.pause();
-            document.body.removeEventListener('click', unlock);
-        };
-        document.body.addEventListener('click', unlock, {once:true});
+        function copyUrl() {
+            const text = document.getElementById('generated-url').textContent;
+            navigator.clipboard.writeText(text).then(() => alert("コピーしました！"));
+        }
     </script>
 </body>
 </html>
